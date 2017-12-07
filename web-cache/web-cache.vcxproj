@@ -147,6 +147,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="test.c" />
+    <ClCompile Include="web-cache.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="web-cache.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
