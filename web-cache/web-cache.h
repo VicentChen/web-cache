@@ -3,11 +3,17 @@
 
 /* status */
 enum {
-    MSG_CHECK_OK,
-    MSG_NOT_HTTP,
-    MSG_HTTP_ILLEGAL
+    SUCCESS,
+    START_LINE_ILLEGAL
 };
 
-int check_start_line(char* msg);
+typedef struct {
+    char* domain;
+    void* ip_addr;
+    char* local_path;
+}cache_info;
+
+int check_start_line(char*, cache_info*);
+int get_ip_from_domain(cache_info*);
 
 #endif
