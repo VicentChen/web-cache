@@ -30,72 +30,76 @@ static int test_pass = 0;
 
 
 
-#define INIT_INFO(info)\
+#define INIT_CONTEXT(context)\
     do{\
-        info.domain = NULL;\
-        memset(info.ip_addr, 0, IP_STR_MAXSIZE);\
-        info.local_path = NULL;\
+        context.msg = NULL;\
+        context.url = NULL;\
+        context.domain = NULL;\
+        context.local_path = NULL;\
+        memset(context.ip_addr, 0, IP_STR_MAXSIZE);\
     } while(0)
-#define FREE_INFO(info)\
+#define FREE_CONTEXT(context)\
     do{\
-        if(info.domain) { free(info.domain); info.domain = NULL; }\
-        if(info.local_path) { free(info.local_path); info.local_path = NULL; }\
+        context.msg = NULL;\
+        if(context.url) { free(context.url); context.url = NULL; }\
+        if(context.domain) { free(context.domain); context.domain = NULL; }\
+        if(context.local_path) { free(context.local_path); context.local_path = NULL; }\
     }while(0)
 
-#define TEST_PARSE(err, msg, info)\
+#define TEST_PARSE(err, msg, context)\
     do {\
-        FREE_INFO(info);\
-        EXPECT_EQ_INT(err, parse_start_line(msg, &info));\
+        FREE_CONTEXT(context);\
+        EXPECT_EQ_INT(err, parse(msg, &context));\
     }while(0)
 
 void test_parse_start_line() {
     char *msg;
-    cache_info info;
-    INIT_INFO(info);
+    http_context context;
+    INIT_CONTEXT(context);
 
     /* request part */
     msg = "GET http://www.baidu.com/ HTTP/1.1\r\n";
-    TEST_PARSE(SUCCESS, msg, info);
-    EXPECT_EQ_STRING("http://www.baidu.com/", info.domain, 21);
+    TEST_PARSE(SUCCESS, msg, context);
+    EXPECT_EQ_STRING("http://www.baidu.com/", context.url, 21);
     msg = "CONNECT www.baidu.com:443 HTTP/1.0\r\n";
-    TEST_PARSE(SUCCESS, msg, info);
-    EXPECT_EQ_STRING("www.baidu.com:443", info.domain, 17);
+    TEST_PARSE(SUCCESS, msg, context);
+    EXPECT_EQ_STRING("www.baidu.com:443", context.url, 17);
     msg = "GEThttp://www.baidu.com/ \r\n";
-    TEST_PARSE(ILLEGAL_START_LINE, msg, info);
+    TEST_PARSE(ILLEGAL_START_LINE, msg, context);
     /* response part */
     msg = "HTTP/1.1 200 OK\r\n";
-    TEST_PARSE(SUCCESS, msg, info);
-    EXPECT_EQ_INT(200, info.status_code);
+    TEST_PARSE(SUCCESS, msg, context);
+    EXPECT_EQ_INT(200, context.status_code);
     msg = "HTTP/1.1 304 Not Modified\r\n";
-    TEST_PARSE(SUCCESS, msg, info);
-    EXPECT_EQ_INT(304, info.status_code);
+    TEST_PARSE(SUCCESS, msg, context);
+    EXPECT_EQ_INT(304, context.status_code);
     msg = "HTTP/1.1 200OK\r\n";
-    TEST_PARSE(ILLEGAL_START_LINE, msg, info);
+    TEST_PARSE(ILLEGAL_START_LINE, msg, context);
 
-    FREE_INFO(info);
+    FREE_CONTEXT(context);
 }
 
-#define TEST_GET_IP(err, info, ip_addr, length)\
+#define TEST_GET_IP(err, context, ip_addr, length)\
     do {\
-        EXPECT_EQ_INT(err, get_ip_from_domain(&info));\
-        EXPECT_EQ_STRING(ip_addr, info.ip_addr, length);\
+        EXPECT_EQ_INT(err, get_ip_from_domain(&context));\
+        EXPECT_EQ_STRING(ip_addr, context.ip_addr, length);\
     }while(0)
 
 void test_get_ip_from_domain() {
     char ip_addr[IP_STR_MAXSIZE];
-    cache_info info;
-    INIT_INFO(info);
+    http_context context;
+    INIT_CONTEXT(context);
 
-    info.domain = "localhost"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "127.0.0.1", 10);
-    TEST_GET_IP(SUCCESS, info, ip_addr, IP_STR_MAXSIZE-1);
-    info.domain = "www.liaoxuefeng.com"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "121.43.166.29", 14);
-    TEST_GET_IP(SUCCESS, info, ip_addr, IP_STR_MAXSIZE-1);
-    info.domain = "hehhehhehehhe"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "0.0.0.0", 8);
-    TEST_GET_IP(GET_IP_FAIL, info, ip_addr, IP_STR_MAXSIZE-1);
+    context.domain = "localhost"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "127.0.0.1", 10);
+    TEST_GET_IP(SUCCESS, context, ip_addr, IP_STR_MAXSIZE-1);
+    context.domain = "www.liaoxuefeng.com"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "121.43.166.29", 14);
+    TEST_GET_IP(SUCCESS, context, ip_addr, IP_STR_MAXSIZE-1);
+    context.domain = "hehhehhehehhe"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "0.0.0.0", 8);
+    TEST_GET_IP(GET_IP_FAIL, context, ip_addr, IP_STR_MAXSIZE-1);
 
     /* TODO */
-    //info.domain = "cuiqingcai.com"; ip_addr = "0.0.0.0";
-    //get_ip_from_domain(&info);
+    //context.url = "cuiqingcai.com"; ip_addr = "0.0.0.0";
+    //get_ip_from_domain(&context);
 }
 
 int main(int argc, char* argv[]) {

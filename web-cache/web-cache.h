@@ -12,15 +12,18 @@ enum {
 
 #define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */
 typedef struct {
-    char* domain;
-    union {
-        char ip_addr[IP_STR_MAXSIZE];
-        int status_code;
-    };
-    char* local_path;
-}cache_info;
+    char ip_addr[IP_STR_MAXSIZE];
+    int status_code;
+    const char* msg;
 
-int parse_start_line(char*, cache_info*);
-int get_ip_from_domain(cache_info*);
+    char* url;
+    char* domain;
+    char* local_path;
+}http_context;
+
+int parse(const char*, http_context*);
+int parse_start_line(const char*, http_context*);
+int parse_headers(const char*, http_context*);
+int get_ip_from_domain(http_context*);
 
 #endif
