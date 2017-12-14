@@ -8,10 +8,8 @@
 #include "web-cache.h"
 // #pragma comment (lib, "Ws2_32.lib") /* add when main add */
 
-
 #define SUPPORT_SPACE 2
 int parse_start_line(const char* msg, http_context* context) {
-    assert(context != NULL);
     
     int i, space_count = 0;
     int space[SUPPORT_SPACE] = {0, 0};
@@ -63,11 +61,48 @@ int parse_start_line(const char* msg, http_context* context) {
     return ret;
 }
 
-int parse_headers(const char* msg, http_context* context) {
-    return SUCCESS;
+int parse_header(const char* msg, const char* name, char** value, char** header_end) {
+    int name_len = strlen(name);
+    const char *sub_start = NULL;
+    const char *sub_end = NULL;
+    int value_size;
+
+    *value = NULL;
+
+    /* search field "name" */
+    while(*msg != '\r') {
+        if (*msg == 0) return ILLEGAL_HEADERS;
+        if (strncmp(msg, name, name_len) == 0) {
+            for (msg; *msg != ':'; msg++); // skip header name
+            msg++; // skip ':'
+            for (msg; *msg == ' ' || *msg == '\t'; msg++); // skip optional space
+            sub_start = msg;
+            for (msg; *msg != '\r' && *msg != ' ' && *msg != '\t'; msg++); // find header value
+            sub_end = msg;
+            for (msg; *msg == ' ' || *msg == '\t'; msg++); // skip optional space
+            /* copy header-value */
+            value_size = sub_end - sub_start + 1;
+            *value = (char*)malloc(value_size);
+            memcpy(*value, sub_start, value_size);
+            (*value)[value_size-1] = 0;
+        }
+        /* skip line */
+        for (msg; *msg != '\r'; msg++); 
+        if (msg[1] == '\n') msg += 2;
+        else return ILLEGAL_HEADERS;
+    }
+    if (msg[1] == '\n') msg += 2;
+    else return ILLEGAL_HEADERS;
+
+    /* set header end */
+    *header_end = msg;
+
+    if (*value) return SUCCESS;
+    else return HEADER_NOT_FOUND;
 }
 
 int parse(const char* msg, http_context* context) {
+    assert(context != NULL);
     int ret = SUCCESS;
     context->msg = msg;
     ret = parse_start_line(context->msg, context);

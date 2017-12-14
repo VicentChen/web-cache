@@ -26,7 +26,7 @@ static int test_pass = 0;
 #define EXPECT_EQ_INT(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%d")
 /*alength: exclude '\0' */
 #define EXPECT_EQ_STRING(expect, actual, alength) \
-    EXPECT_EQ_BASE(sizeof(expect) - 1 == alength && memcmp(expect, actual, alength + 1) == 0, expect, actual, "%s")
+    EXPECT_EQ_BASE(strncmp(expect, actual, alength + 1) == 0, expect, actual, "%s")
 
 
 
@@ -79,6 +79,21 @@ void test_parse_start_line() {
     FREE_CONTEXT(context);
 }
 
+void test_parse_header() {
+    char *msg, *name, *value, *header_end;
+    msg = "Date: Tue, 12 Dec 2017 11:40:15 GMT\r\nHost: www.baidu.com\r\n\r\n"; name = "Host";
+    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_STRING("www.baidu.com", value, 13);
+    msg = "Date: Tue, 12 Dec 2017 11:40:15 GMT\r\nHost:www.baidu.com \r\n\r\n"; name = "Host";
+    EXPECT_EQ_STRING("www.baidu.com", value, 13);
+    msg = ""; name = "error";
+    EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_header(msg, name, &value, &header_end));
+    msg = "ff: fff\r"; name = "error";
+    EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_header(msg, name, &value, &header_end));
+    msg = "\r\n"; name = "error";
+    EXPECT_EQ_INT(HEADER_NOT_FOUND, parse_header(msg, name, &value, &header_end));
+}
+
 #define TEST_GET_IP(err, context, ip_addr, length)\
     do {\
         EXPECT_EQ_INT(err, get_ip_from_domain(&context));\
@@ -112,6 +127,7 @@ int main(int argc, char* argv[]) {
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
     test_parse_start_line();
+    test_parse_header();
     test_get_ip_from_domain();
     printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
