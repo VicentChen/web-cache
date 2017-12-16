@@ -89,7 +89,7 @@ int parse_start_line(const char* msg, http_context* context) {
 }
 
 /**
- *
+ *==================================================================
  * Parameters:
  * 
  * value:
@@ -100,8 +100,9 @@ int parse_start_line(const char* msg, http_context* context) {
  *   and horizontal tab '\t'), "value" will be an empty string.
  * header_end:
  *   Updates when headers are syntactically correct.
- *   
- * Return Value:
+ *==================================================================
+ * Return Values:
+ * 
  * ILLEGAL_HEADERS:
  *   Headers are syntatically incorrect, including "\r\n" miss "\n"
  *   or "\r".
@@ -208,6 +209,9 @@ int parse_request(const char* msg, http_context* context) {
     ret = parse_host(header_value, context);
     THROW_PARSE_REQ_EXCEPTION(ret, header_value);
     free(header_value);
+
+    /* get ip */
+    get_ip_from_host(context);
 
     /* update context.msg */
     context->msg = header_end;

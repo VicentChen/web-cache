@@ -3,6 +3,8 @@
 
 #define DEBUG
 #define DEFAULT_HTTP_PORT 80
+#define WEB_CACHE_PORT 63014
+#define DEFAULT_BACKLOG 64
 #define DEFAULT_QUEUE_LEN 16
 
 typedef enum {
