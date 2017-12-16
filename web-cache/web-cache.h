@@ -2,6 +2,7 @@
 #define WEB_CACHE_H__
 
 #define DEBUG
+#define DEFAULT_HTTP_PORT 80
 #define DEFAULT_QUEUE_LEN 16
 
 typedef enum {
@@ -16,6 +17,7 @@ enum {
     ILLEGAL_START_LINE,
     ILLEGAL_HEADERS,
     HEADER_NOT_FOUND,
+    UNKNOWN_MESSAGE_TYPE,
     GET_IP_FAIL,
     QUEUE_FULL
 };
@@ -24,17 +26,19 @@ enum {
 typedef struct {
     msg_type msg_type;
     char ip_addr[IP_STR_MAXSIZE];
+    int port;
     int status_code;
     const char* msg;
 
     char* url;
-    char* domain;
+    char* host;
     char* local_path;
 }http_context;
 
 int parse(const char*, http_context*);
 int parse_start_line(const char*, http_context*);
 int parse_header(const char*, const char*, char**, char**);
-int get_ip_from_domain(http_context*);
+int parse_host(const char*, http_context*);
+int get_ip_from_host(http_context*);
 
 #endif
