@@ -8,40 +8,70 @@
 #include "web-cache.h"
 // #pragma comment (lib, "Ws2_32.lib") /* add when main add */
 
+static http_context** req_queue = NULL;
+static int queue_len = DEFAULT_QUEUE_LEN + 1;
+static int head = 0, tail = 0;
+
+void init_queue() {
+    req_queue = (http_context**)malloc(sizeof(http_context*)*queue_len);
+}
+
+int en_queue(http_context *context) {
+    if ((tail + 1) % queue_len == head)
+        return QUEUE_FULL;
+    req_queue[tail] = context;
+    tail = (tail + 1) % queue_len;
+    return SUCCESS;
+}
+
+http_context* de_queue() {
+    if (head == tail) return NULL;
+    int ret = head;
+    head = (head + 1) % queue_len;
+    return req_queue[ret];
+}
+
+void release_queue() {
+    if (req_queue) free(req_queue);
+}
+
 #define SUPPORT_SPACE 2
 int parse_start_line(const char* msg, http_context* context) {
     
     int i, space_count = 0;
     int space[SUPPORT_SPACE] = {0, 0};
-    int ret = SUCCESS;
-    int flag = 0; const int HTTP = 1;
+    int alloc_size = 0;
 
     /* walk through start line */
+    context->msg_type = UNKNOWN;
     for(i = 0; msg[i] != '\r'; i++) {
-        if (msg[i] == 0) ret = ILLEGAL_START_LINE;
+        if (msg[i] == 0) return ILLEGAL_START_LINE;
         if (msg[i] == ' ' && space_count < SUPPORT_SPACE) space[space_count++] = i;
     }
-    if (space_count < 2) ret = ILLEGAL_START_LINE;
-    if (msg[i + 1] != '\n') ret = ILLEGAL_START_LINE;
+    if (space_count < 2) return ILLEGAL_START_LINE;
+    if (msg[i + 1] != '\n') return ILLEGAL_START_LINE;
 
+    /* only legal message will execute codes below */
     /* update "msg" in context */
     context->msg = msg + i + 2;
 
     /* check request or response */
     if (msg[0] == 'H' && msg[1] == 'T' && msg[2] == 'T' && msg[3] == 'P') {
         /* response: set status code */
+        context->msg_type = RESPONSE;
+
         context->status_code = 0;
-        if (ret == SUCCESS) {
-            int status_code_size = space[1] - space[0];
-            char* str = (char*)malloc(status_code_size);
-            memcpy(str, msg + space[0] + 1, status_code_size);
-            str[status_code_size - 1] = 0;
-            context->status_code = atoi(str);
-            free(str);
-        }
+        alloc_size = space[1] - space[0];
+        char* str = (char*)malloc(alloc_size);
+        memcpy(str, msg + space[0] + 1, alloc_size);
+        str[alloc_size - 1] = 0;
+        context->status_code = atoi(str);
+        free(str);
     }
     else {
         /* request: set url */
+        context->msg_type = REQUEST;
+
         if (context->url) {
 #ifdef DEBUG
             printf("url NOT NULL and it'll be freed\n");
@@ -49,16 +79,13 @@ int parse_start_line(const char* msg, http_context* context) {
             free(context->url);
             context->url = NULL;
         }
-
-        if (ret == SUCCESS) {
-            int domain_size = space[1] - space[0];
-            context->url = (char*)malloc(domain_size);
-            memcpy(context->url, msg + space[0] + 1, domain_size);
-            context->url[domain_size - 1] = 0;
-        }
+        alloc_size = space[1] - space[0];
+        context->url = (char*)malloc(alloc_size);
+        memcpy(context->url, msg + space[0] + 1, alloc_size);
+        context->url[alloc_size - 1] = 0;
     }
 
-    return ret;
+    return SUCCESS;
 }
 
 int parse_header(const char* msg, const char* name, char** value, char** header_end) {
@@ -99,6 +126,10 @@ int parse_header(const char* msg, const char* name, char** value, char** header_
 
     if (*value) return SUCCESS;
     else return HEADER_NOT_FOUND;
+}
+
+int parse_host(const char* host, http_context* context) {
+    return SUCCESS;
 }
 
 int parse(const char* msg, http_context* context) {

@@ -2,8 +2,10 @@
 #define WEB_CACHE_H__
 
 #define DEBUG
+#define DEFAULT_QUEUE_LEN 16
 
 typedef enum {
+    UNKNOWN,
     REQUEST,
     RESPONSE
 } msg_type;
@@ -14,7 +16,8 @@ enum {
     ILLEGAL_START_LINE,
     ILLEGAL_HEADERS,
     HEADER_NOT_FOUND,
-    GET_IP_FAIL
+    GET_IP_FAIL,
+    QUEUE_FULL
 };
 
 #define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */

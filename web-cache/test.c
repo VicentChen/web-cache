@@ -32,6 +32,7 @@ static int test_pass = 0;
 
 #define INIT_CONTEXT(context)\
     do{\
+        context.msg_type = UNKNOWN;\
         context.msg = NULL;\
         context.url = NULL;\
         context.domain = NULL;\
@@ -61,20 +62,26 @@ void test_parse_start_line() {
     msg = "GET http://www.baidu.com/ HTTP/1.1\r\n";
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_STRING("http://www.baidu.com/", context.url, 21);
+    EXPECT_EQ_INT(REQUEST, context.msg_type);
     msg = "CONNECT www.baidu.com:443 HTTP/1.0\r\n";
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_STRING("www.baidu.com:443", context.url, 17);
+    EXPECT_EQ_INT(REQUEST, context.msg_type);
     msg = "GEThttp://www.baidu.com/ \r\n";
     TEST_PARSE(ILLEGAL_START_LINE, msg, context);
+    EXPECT_EQ_INT(UNKNOWN, context.msg_type);
     /* response part */
     msg = "HTTP/1.1 200 OK\r\n";
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_INT(200, context.status_code);
+    EXPECT_EQ_INT(RESPONSE, context.msg_type);
     msg = "HTTP/1.1 304 Not Modified\r\n";
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_INT(304, context.status_code);
+    EXPECT_EQ_INT(RESPONSE, context.msg_type);
     msg = "HTTP/1.1 200OK\r\n";
     TEST_PARSE(ILLEGAL_START_LINE, msg, context);
+    EXPECT_EQ_INT(UNKNOWN, context.msg_type);
 
     FREE_CONTEXT(context);
 }
