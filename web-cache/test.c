@@ -29,13 +29,13 @@ static int test_pass = 0;
     EXPECT_EQ_BASE(strncmp(expect, actual, alength + 1) == 0, expect, actual, "%s")
 
 
-
 #define INIT_CONTEXT(context)\
     do{\
         context.msg_type = UNKNOWN;\
         context.msg = NULL;\
         context.url = NULL;\
-        context.domain = NULL;\
+        context.host = NULL;\
+        context.port = -1;\
         context.local_path = NULL;\
         memset(context.ip_addr, 0, IP_STR_MAXSIZE);\
     } while(0)
@@ -43,14 +43,14 @@ static int test_pass = 0;
     do{\
         context.msg = NULL;\
         if(context.url) { free(context.url); context.url = NULL; }\
-        if(context.domain) { free(context.domain); context.domain = NULL; }\
+        if(context.host) { free(context.host); context.host = NULL; }\
         if(context.local_path) { free(context.local_path); context.local_path = NULL; }\
     }while(0)
 
 #define TEST_PARSE(err, msg, context)\
     do {\
         FREE_CONTEXT(context);\
-        EXPECT_EQ_INT(err, parse(msg, &context));\
+        EXPECT_EQ_INT(err, parse_start_line(msg, &context));\
     }while(0)
 
 void test_parse_start_line() {
@@ -82,17 +82,27 @@ void test_parse_start_line() {
     msg = "HTTP/1.1 200OK\r\n";
     TEST_PARSE(ILLEGAL_START_LINE, msg, context);
     EXPECT_EQ_INT(UNKNOWN, context.msg_type);
+    msg = "";
+    TEST_PARSE(ILLEGAL_START_LINE, msg, context);
+    EXPECT_EQ_INT(UNKNOWN, context.msg_type);
 
     FREE_CONTEXT(context);
 }
 
 void test_parse_header() {
     char *msg, *name, *value, *header_end;
-    msg = "Date: Tue, 12 Dec 2017 11:40:15 GMT\r\nHost: www.baidu.com\r\n\r\n"; name = "Host";
+    msg = "Date: \tTue, 12 Dec 2017 11:40:15 GMT\r\n\r\n"; name = "Date";
+    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_STRING("Tue, 12 Dec 2017 11:40:15 GMT", value, 29);
+    free(value); value = NULL;
+    msg = "Host:    www.baidu.com  \t    \r\n\r\n"; name = "Host";
     EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_end));
     EXPECT_EQ_STRING("www.baidu.com", value, 13);
-    msg = "Date: Tue, 12 Dec 2017 11:40:15 GMT\r\nHost:www.baidu.com \r\n\r\n"; name = "Host";
-    EXPECT_EQ_STRING("www.baidu.com", value, 13);
+    free(value); value = NULL;
+    msg = "Host: \t \t  \r\n\r\n"; name = "Host";
+    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_STRING("", value, 0);
+    free(value); value = NULL;
     msg = ""; name = "error";
     EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_header(msg, name, &value, &header_end));
     msg = "ff: fff\r"; name = "error";
@@ -101,27 +111,49 @@ void test_parse_header() {
     EXPECT_EQ_INT(HEADER_NOT_FOUND, parse_header(msg, name, &value, &header_end));
 }
 
+void test_parse_host() {
+    char *msg;
+    http_context context;
+    INIT_CONTEXT(context);
+
+    msg = "www.baidu.com:443";
+    FREE_CONTEXT(context);
+    EXPECT_EQ_INT(SUCCESS, parse_host(msg, &context));
+    EXPECT_EQ_STRING("www.baidu.com", context.host, 13);
+    EXPECT_EQ_INT(443, context.port);
+    msg = "www.baidu.com";
+    FREE_CONTEXT(context);
+    EXPECT_EQ_INT(SUCCESS, parse_host(msg, &context));
+    EXPECT_EQ_STRING("www.baidu.com", context.host, 13);
+    EXPECT_EQ_INT(80, context.port);
+    msg = "";
+    FREE_CONTEXT(context);
+    EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_host(msg, &context));
+
+    FREE_CONTEXT(context);
+}
+
 #define TEST_GET_IP(err, context, ip_addr, length)\
     do {\
-        EXPECT_EQ_INT(err, get_ip_from_domain(&context));\
+        EXPECT_EQ_INT(err, get_ip_from_host(&context));\
         EXPECT_EQ_STRING(ip_addr, context.ip_addr, length);\
     }while(0)
 
-void test_get_ip_from_domain() {
+void test_get_ip_from_host() {
     char ip_addr[IP_STR_MAXSIZE];
     http_context context;
     INIT_CONTEXT(context);
 
-    context.domain = "localhost"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "127.0.0.1", 10);
+    context.host = "localhost"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "127.0.0.1", 10);
     TEST_GET_IP(SUCCESS, context, ip_addr, IP_STR_MAXSIZE-1);
-    context.domain = "www.liaoxuefeng.com"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "121.43.166.29", 14);
+    context.host = "www.liaoxuefeng.com"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "121.43.166.29", 14);
     TEST_GET_IP(SUCCESS, context, ip_addr, IP_STR_MAXSIZE-1);
-    context.domain = "hehhehhehehhe"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "0.0.0.0", 8);
+    context.host = "hehhehhehehhe"; memset(ip_addr, 0, IP_STR_MAXSIZE); memcpy_s(ip_addr, IP_STR_MAXSIZE, "0.0.0.0", 8);
     TEST_GET_IP(GET_IP_FAIL, context, ip_addr, IP_STR_MAXSIZE-1);
 
     /* TODO */
     //context.url = "cuiqingcai.com"; ip_addr = "0.0.0.0";
-    //get_ip_from_domain(&context);
+    //get_ip_from_host(&context);
 }
 
 int main(int argc, char* argv[]) {
@@ -135,7 +167,8 @@ int main(int argc, char* argv[]) {
 
     test_parse_start_line();
     test_parse_header();
-    test_get_ip_from_domain();
+    test_parse_host();
+    test_get_ip_from_host();
     printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
     WSACleanup();
