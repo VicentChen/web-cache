@@ -1,3 +1,4 @@
+#define _WINDOWS
 #ifdef _WINDOWS
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
@@ -29,24 +30,45 @@ static int test_pass = 0;
 #define EXPECT_EQ_STRING(expect, actual, alength) \
     EXPECT_EQ_BASE(strncmp(expect, actual, alength + 1) == 0, expect, actual, "%s")
 
+void test_queue() {
+    int num_len = 4;
+    int num[4];
+    queue q;
+    init_queue(q); set_queue_size(&q, num_len);
+    for (int i = 0; i < num_len; i++) num[i] = i;
 
-#define INIT_CONTEXT(context)\
-    do{\
-        context.msg_type = UNKNOWN;\
-        context.msg = NULL;\
-        context.url = NULL;\
-        context.host = NULL;\
-        context.port = -1;\
-        context.local_path = NULL;\
-        memset(context.ip_addr, 0, IP_STR_MAXSIZE);\
-    } while(0)
-#define FREE_CONTEXT(context)\
-    do{\
-        context.msg = NULL;\
-        if(context.url) { free(context.url); context.url = NULL; }\
-        if(context.host) { free(context.host); context.host = NULL; }\
-        if(context.local_path) { free(context.local_path); context.local_path = NULL; }\
-    }while(0)
+    for (int i = 0; i < num_len; i++)
+        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
+    EXPECT_EQ_INT(QUEUE_FULL, en_queue(&q, num));
+    for (int i = 0; i < num_len; i++)
+        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
+    EXPECT_EQ_INT(0, ((int)de_queue(&q)));
+
+    for (int i = 0; i < num_len - 1; i++)
+        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
+    for (int i = 0; i < num_len - 1; i++)
+        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
+    for (int i = 0; i < num_len; i++)
+        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
+    EXPECT_EQ_INT(QUEUE_FULL, en_queue(&q, num));
+    for (int i = 0; i < num_len; i++)
+        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
+    EXPECT_EQ_INT(0, ((int)de_queue(&q)));
+
+    for (int i = 0; i < num_len / 2; i++)
+        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
+    for (int i = 0; i < num_len / 2; i++)
+        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
+    for (int i = 0; i < num_len; i++) num[i] = i;
+    for (int i = 0; i < num_len; i++)
+        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
+    EXPECT_EQ_INT(QUEUE_FULL, en_queue(&q, num));
+    for (int i = 0; i < num_len; i++)
+        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
+    EXPECT_EQ_INT(0, ((int)de_queue(&q)));
+
+    free_queue(q);
+}
 
 #define TEST_PARSE(err, msg, context)\
     do {\
@@ -256,13 +278,14 @@ int main(int argc, char* argv[]) {
     err = WSAStartup(MAKEWORD(2, 2), &wsa_data);
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
-    //test_parse_start_line();
-    //test_parse_header();
-    //test_parse_host();
-    //test_get_ip_from_host();
-    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    test_queue();
+    test_parse_start_line();
+    test_parse_header();
+    test_parse_host();
+    test_get_ip_from_host();
+    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    combine_test();
+    //combine_test();
 
     WSACleanup();
     return main_ret;

@@ -8,31 +8,30 @@
 #include "web-cache.h"
 // #pragma comment (lib, "Ws2_32.lib") /* add when main add */
 
-static http_context** req_queue = NULL;
-static int queue_len = DEFAULT_QUEUE_LEN + 1;
-static int head = 0, tail = 0;
-
-void init_queue() {
-    req_queue = (http_context**)malloc(sizeof(http_context*)*queue_len);
+int get_queue_size(queue *q) {
+    return q->size - 1;
 }
 
-int en_queue(http_context *context) {
-    if ((tail + 1) % queue_len == head)
+int set_queue_size(queue* q, int size) {
+    q->size = size + 1;
+    q->items = realloc(q->items, sizeof(void*) * q->size);
+    if (q->items) return SUCCESS;
+    else return OUT_OF_MEMORY;
+}
+
+int en_queue(queue* q, void* item_ptr) {
+    if ((q->tail + 1) % q->size == q->head)
         return QUEUE_FULL;
-    req_queue[tail] = context;
-    tail = (tail + 1) % queue_len;
+    q->items[q->tail] = item_ptr;
+    q->tail = (q->tail + 1) % q->size;
     return SUCCESS;
 }
 
-http_context* de_queue() {
-    if (head == tail) return NULL;
-    int ret = head;
-    head = (head + 1) % queue_len;
-    return req_queue[ret];
-}
-
-void release_queue() {
-    if (req_queue) free(req_queue);
+void* de_queue(queue *q) {
+    if (q->head == q->tail) return NULL;
+    int ret = q->head;
+    q->head = (q->head + 1) % q->size;
+    return q->items[ret];
 }
 
 #define SUPPORT_SPACE 2

@@ -21,7 +21,9 @@ enum {
     HEADER_NOT_FOUND,
     UNKNOWN_MESSAGE_TYPE,
     GET_IP_FAIL,
-    QUEUE_FULL
+    OUT_OF_MEMORY,
+    QUEUE_FULL,
+    QUEUE_EMPTY
 };
 
 #define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */
@@ -37,6 +39,46 @@ typedef struct {
     char* local_path;
 }http_context;
 
+#define INIT_CONTEXT(context)\
+    do{\
+        context.msg_type = UNKNOWN;\
+        context.msg = NULL;\
+        context.url = NULL;\
+        context.host = NULL;\
+        context.port = -1;\
+        context.local_path = NULL;\
+        memset(context.ip_addr, 0, IP_STR_MAXSIZE);\
+    } while(0)
+#define FREE_CONTEXT(context)\
+    do{\
+        context.msg = NULL;\
+        if(context.url) { free(context.url); context.url = NULL; }\
+        if(context.host) { free(context.host); context.host = NULL; }\
+        if(context.local_path) { free(context.local_path); context.local_path = NULL; }\
+    }while(0)
+
+typedef struct {
+    void **items;
+    int size;
+    int head;
+    int tail;
+}queue;
+
+#define init_queue(q)\
+    do{\
+        q.items = NULL;\
+        q.head = q.tail = q.size = 0;\
+    }while(0)
+
+#define free_queue(q)\
+    do{\
+        if (q.items) free(q.items);\
+    } while(0)
+
+int get_queue_size(queue*);
+int set_queue_size(queue*, int);
+int en_queue(queue*, void*);
+void* de_queue(queue*);
 int parse(const char*, http_context*);
 int parse_start_line(const char*, http_context*);
 int parse_header(const char*, const char*, char**, char**);
