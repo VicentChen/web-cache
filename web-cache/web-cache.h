@@ -10,7 +10,9 @@
 typedef enum {
     UNKNOWN,
     REQUEST,
-    RESPONSE
+    RESPONSE,
+    GET,
+    NOT_GET
 } msg_type;
 
 /* status */
@@ -30,6 +32,7 @@ enum {
 
 #define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */
 typedef struct {
+    msg_type method_type;
     msg_type msg_type;
     char ip_addr[IP_STR_MAXSIZE];
     int port;
@@ -48,6 +51,7 @@ typedef struct {
 
 #define INIT_CONTEXT(context)\
     do{\
+        context.method_type = UNKNOWN;\
         context.msg_type = UNKNOWN;\
         context.msg = NULL;\
         context.url = NULL;\

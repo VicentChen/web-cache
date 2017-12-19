@@ -86,10 +86,12 @@ void test_parse_start_line() {
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_STRING("http://www.baidu.com/", context.url, 21);
     EXPECT_EQ_INT(REQUEST, context.msg_type);
+    EXPECT_EQ_INT(GET, context.method_type);
     msg = "CONNECT www.baidu.com:443 HTTP/1.0\r\n";
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_STRING("www.baidu.com:443", context.url, 17);
     EXPECT_EQ_INT(REQUEST, context.msg_type);
+    EXPECT_EQ_INT(NOT_GET, context.method_type);
     msg = "GEThttp://www.baidu.com/ \r\n";
     TEST_PARSE(ILLEGAL_START_LINE, msg, context);
     EXPECT_EQ_INT(UNKNOWN, context.msg_type);
@@ -209,11 +211,11 @@ int main(int argc, char* argv[]) {
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
     //test_queue();
-    //test_parse_start_line();
+    test_parse_start_line();
     //test_parse_header();
     //test_parse_host();
     //test_get_ip_from_host();
-    test_get_local_path();
+    //test_get_local_path();
     printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
     //system_test();

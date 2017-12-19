@@ -80,6 +80,12 @@ int parse_start_line(const char* msg, http_context* context) {
     if (msg[i + 1] != '\n') return ILLEGAL_START_LINE;
 
     /* only legal message will execute codes below */
+    /* check method_type (currently support GET method only )*/
+    if (msg[0] == 'G' && msg[1] == 'E' && msg[2] == 'T')
+        context->method_type = GET;
+    else
+        context->method_type = NOT_GET;
+
     /* update "msg" in context */
     context->msg = msg + i + 2;
 
@@ -351,7 +357,7 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         /* parse request */
         parse(browser_buf, &context);
 
-        /* TODO: check cache */
+        /* TODO: check cache (only support GET method) */
 
         /* initialize web server socket */
         server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
