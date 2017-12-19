@@ -3,7 +3,7 @@
 
 #define DEBUG
 #define DEFAULT_HTTP_PORT 80
-#define WEB_CACHE_PORT 63014
+#define DEFAULT_WEB_CACHE_PORT 63014
 #define DEFAULT_BACKLOG 64
 #define DEFAULT_QUEUE_LEN 16
 
@@ -23,7 +23,9 @@ enum {
     GET_IP_FAIL,
     OUT_OF_MEMORY,
     QUEUE_FULL,
-    QUEUE_EMPTY
+    QUEUE_EMPTY,
+    LISTEN_ERROR,
+    RECV_EMPTY
 };
 
 #define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */
@@ -37,6 +39,11 @@ typedef struct {
     char* url;
     char* host;
     char* local_path;
+
+    SOCKET browser_socket;
+    struct sockaddr_in browser_addr;
+    int browser_addr_len;
+    char browser_buf[1025]; // TODO: optimize, not a fixed size
 }http_context;
 
 #define INIT_CONTEXT(context)\
@@ -62,12 +69,14 @@ typedef struct {
     int size;
     int head;
     int tail;
+    HANDLE mutex;
 }queue;
 
 #define init_queue(q)\
     do{\
         q.items = NULL;\
         q.head = q.tail = q.size = 0;\
+        q.mutex = CreateMutex(NULL, FALSE, NULL);\
     }while(0)
 
 #define free_queue(q)\
@@ -85,4 +94,8 @@ int parse_header(const char*, const char*, char**, char**);
 int parse_host(const char*, http_context*);
 int get_ip_from_host(http_context*);
 
+int listen_to_browser(http_context *);
+int get_web_page(http_context *);
+
+void simple_cache();
 #endif

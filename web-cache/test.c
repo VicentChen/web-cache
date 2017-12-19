@@ -196,7 +196,7 @@ void combine_test() {
     web_cache_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     web_cache_addr.sin_family = AF_INET;
     web_cache_addr.sin_addr.S_un.S_addr = INADDR_ANY;
-    web_cache_addr.sin_port = htons(WEB_CACHE_PORT);
+    web_cache_addr.sin_port = htons(DEFAULT_WEB_CACHE_PORT);
 
     /* http socket */
     char http_buf[16349];
@@ -269,6 +269,25 @@ void combine_test() {
     }
 }
 
+void combine_test_2() {
+    int ret;
+    http_context context;
+    INIT_CONTEXT(context);
+    while (1) {
+        ret = listen_to_browser(&context);
+        printf("listen ret: %d\n", ret);
+        ret = parse(context.browser_buf, &context);
+        printf("parse ret: %d\n", ret);
+        ret = get_web_page(&context);
+        printf("get ret: %d\n", ret);
+    }
+    FREE_CONTEXT(context);
+}
+
+void combine_test_3() {
+    simple_cache();
+}
+
 int main(int argc, char* argv[]) {
 #ifdef _WINDOWS
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -278,14 +297,14 @@ int main(int argc, char* argv[]) {
     err = WSAStartup(MAKEWORD(2, 2), &wsa_data);
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
-    test_queue();
-    test_parse_start_line();
-    test_parse_header();
-    test_parse_host();
-    test_get_ip_from_host();
-    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    //test_queue();
+    //test_parse_start_line();
+    //test_parse_header();
+    //test_parse_host();
+    //test_get_ip_from_host();
+    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    //combine_test();
+    combine_test_3();
 
     WSACleanup();
     return main_ret;
