@@ -84,6 +84,7 @@ typedef struct {
         if (q.items) free(q.items);\
     } while(0)
 
+unsigned long hash(unsigned char*);
 int get_queue_size(queue*);
 int set_queue_size(queue*, int);
 int en_queue(queue*, void*);

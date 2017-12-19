@@ -161,14 +161,14 @@ void test_get_local_path() {
     char* ans;
     INIT_CONTEXT(context);
     context.host = "www.baidu.com"; context.url = "http://www.baidu.com/";
-    ans = "www.baidu.com/http:  www.baidu.com ";
+    ans = "www.baidu.com/2089601105";
     get_local_path(&context);
-    EXPECT_EQ_STRING(ans, context.local_path, 35);
+    EXPECT_EQ_STRING(ans, context.local_path, 24);
     free(context.local_path);  context.local_path = NULL;
     context.host = "tools.ietf.org"; context.url = "https://tools.ietf.org/html/rfc1630";
-    ans = "tools.ietf.org/https:  tools.ietf.org html rfc1630";
+    ans = "tools.ietf.org/3750935845";
     get_local_path(&context);
-    EXPECT_EQ_STRING(ans, context.local_path, 50);
+    EXPECT_EQ_STRING(ans, context.local_path, 25);
     free(context.local_path);  context.local_path = NULL;
 }
 
@@ -213,10 +213,10 @@ int main(int argc, char* argv[]) {
     //test_parse_header();
     //test_parse_host();
     //test_get_ip_from_host();
-    //test_get_local_path();
-    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    test_get_local_path();
+    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    system_test();
+    //system_test();
 
     WSACleanup();
     return main_ret;

@@ -11,6 +11,21 @@
 
 int web_cache_exit_flag = 0;
 
+/**
+ * djb2 string hash algorithm
+ * copied from: http://www.cse.yorku.ca/~oz/hash.html
+ */
+unsigned long hash(unsigned char *str)
+{
+    unsigned long hash = 5381;
+    int c;
+
+    while (c = *str++)
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+    return hash;
+}
+
 // not thread safe
 int get_queue_size(queue *q) {
     assert(q != NULL);
@@ -208,18 +223,7 @@ int get_local_path(http_context* context) {
     /* local_path = host + '/' + url */
     int str_len = strlen(context->host) + strlen(context->url) + 2;
     char *str = (char*)malloc(str_len);
-    sprintf_s(str, str_len, "%s %s", context->host, context->url);
-    
-    for (char* c = str; *c != 0; c++) {
-        switch (*c) {
-            case '\\': /* '\\' => ' ' */
-            case '/': /* '/' => ' '*/
-                *c = ' '; break;
-            case ' ': /*' ' => '/' */
-                *c = '/'; break;
-            default: break;
-        }
-    }
+    sprintf_s(str, str_len, "%s/%lu", context->host, hash(context->url));
     context->local_path = str;
     return SUCCESS;
 }
@@ -311,6 +315,8 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
     int ret;
     int timeout = 1000;
 
+    /* TODO: conditional create directory */
+
     /* get server socket */
     SOCKET cache_socket = *(SOCKET*)lpParam;
 
@@ -327,6 +333,7 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 
     http_context context;
     int req_len, rep_len;
+    FILE* web_page_file;
     web_cache_exit_flag = 0;
     while (web_cache_exit_flag != 1) {
         INIT_CONTEXT(context);
@@ -343,6 +350,8 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 
         /* parse request */
         parse(browser_buf, &context);
+
+        /* TODO: check cache */
 
         /* initialize web server socket */
         server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
