@@ -156,6 +156,22 @@ void test_parse_host() {
     FREE_CONTEXT(context);
 }
 
+void test_get_local_path() {
+    http_context context;
+    char* ans;
+    INIT_CONTEXT(context);
+    context.host = "www.baidu.com"; context.url = "http://www.baidu.com/";
+    ans = "www.baidu.com/http:  www.baidu.com ";
+    get_local_path(&context);
+    EXPECT_EQ_STRING(ans, context.local_path, 35);
+    free(context.local_path);  context.local_path = NULL;
+    context.host = "tools.ietf.org"; context.url = "https://tools.ietf.org/html/rfc1630";
+    ans = "tools.ietf.org/https:  tools.ietf.org html rfc1630";
+    get_local_path(&context);
+    EXPECT_EQ_STRING(ans, context.local_path, 50);
+    free(context.local_path);  context.local_path = NULL;
+}
+
 #define TEST_GET_IP(err, context, ip_addr, length)\
     do {\
         EXPECT_EQ_INT(err, get_ip_from_host(&context));\
@@ -297,14 +313,15 @@ int main(int argc, char* argv[]) {
     err = WSAStartup(MAKEWORD(2, 2), &wsa_data);
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
-    //test_queue();
-    //test_parse_start_line();
-    //test_parse_header();
-    //test_parse_host();
-    //test_get_ip_from_host();
-    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    test_queue();
+    test_parse_start_line();
+    test_parse_header();
+    test_parse_host();
+    test_get_ip_from_host();
+    test_get_local_path();
+    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    combine_test_3();
+    //combine_test_3();
 
     WSACleanup();
     return main_ret;

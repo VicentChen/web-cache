@@ -88,14 +88,16 @@ int get_queue_size(queue*);
 int set_queue_size(queue*, int);
 int en_queue(queue*, void*);
 void* de_queue(queue*);
+
 int parse(const char*, http_context*);
 int parse_start_line(const char*, http_context*);
 int parse_header(const char*, const char*, char**, char**);
 int parse_host(const char*, http_context*);
+int get_local_path(http_context*);
 int get_ip_from_host(http_context*);
 
 int listen_to_browser(http_context *);
 int get_web_page(http_context *);
-
 void simple_cache();
+
 #endif

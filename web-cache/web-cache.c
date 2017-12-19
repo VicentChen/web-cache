@@ -19,7 +19,6 @@ int get_queue_size(queue *q) {
 
 // not thread safe
 int set_queue_size(queue* q, int size) {
-    assert(q == NULL); // currently not support resize
     q->size = size + 1;
     q->items = (void**)realloc(q->items, sizeof(void*) * q->size);
     if (q->items) return SUCCESS;
@@ -205,6 +204,26 @@ int parse_host(const char* host, http_context* context) {
     return SUCCESS;
 }
 
+int get_local_path(http_context* context) {
+    /* local_path = host + '/' + url */
+    int str_len = strlen(context->host) + strlen(context->url) + 2;
+    char *str = (char*)malloc(str_len);
+    sprintf_s(str, str_len, "%s %s", context->host, context->url);
+    
+    for (char* c = str; *c != 0; c++) {
+        switch (*c) {
+            case '\\': /* '\\' => ' ' */
+            case '/': /* '/' => ' '*/
+                *c = ' '; break;
+            case ' ': /*' ' => '/' */
+                *c = '/'; break;
+            default: break;
+        }
+    }
+    context->local_path = str;
+    return SUCCESS;
+}
+
 #define THROW_PARSE_REQ_EXCEPTION(ret, header_value)\
     do{\
         if (ret != SUCCESS) {\
@@ -226,6 +245,9 @@ int parse_request(const char* msg, http_context* context) {
 
     /* get ip */
     get_ip_from_host(context);
+
+    /* update local path*/
+    get_local_path(context);
 
     /* update context.msg */
     context->msg = header_end;
