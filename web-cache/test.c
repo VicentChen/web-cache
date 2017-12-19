@@ -195,112 +195,7 @@ void test_get_ip_from_host() {
     //get_ip_from_host(&context);
 }
 
-#define PROMPT_COMBINE_ERROR(expect, actual, when) \
-    do{\
-        if (expect != actual) {\
-            printf(when);\
-            printf(" ERROR: %d\n", WSAGetLastError());\
-        }\
-    }while(0)
-void combine_test() {
-    int ret;
-    int time_out = 5000;
-    http_context context;
-    /* web cache socket */
-    SOCKET web_cache_socket;
-    struct sockaddr_in web_cache_addr;
-    web_cache_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    web_cache_addr.sin_family = AF_INET;
-    web_cache_addr.sin_addr.S_un.S_addr = INADDR_ANY;
-    web_cache_addr.sin_port = htons(DEFAULT_WEB_CACHE_PORT);
-
-    /* http socket */
-    char http_buf[16349];
-    SOCKET http_socket;
-    struct sockaddr_in http_addr;
-    char buf[1024];
-    struct in_addr http_target_addr;
-    int http_addr_len, http_recv_len;
-    http_addr.sin_family = AF_INET;
-
-    /* client socket */
-    SOCKET client;
-    struct sockaddr_in client_addr;
-    int client_addr_len;
-    char client_buf[1025];
-    int client_recv_len;
-
-    /* bind and listen */
-    ret = bind(web_cache_socket, (struct sockaddr*)&web_cache_addr, sizeof(web_cache_addr));
-    PROMPT_COMBINE_ERROR(0, ret, "bind");
-    ret = listen(web_cache_socket, DEFAULT_BACKLOG);
-    PROMPT_COMBINE_ERROR(0, ret, "listen");
-
-    while(1) {
-        INIT_CONTEXT(context);
-
-        /* listen request */
-        printf("Waiting: %d\n", WSAGetLastError());
-        client_addr_len = sizeof(client_addr);
-        client_addr.sin_family = AF_INET;
-        client = accept(web_cache_socket, (struct sockaddr*)&client_addr, &client_addr_len);
-        printf("Accept: %d\n", WSAGetLastError());
-        client_recv_len = recv(client, client_buf, 1024, 0);
-        printf("Recv: %d\n", WSAGetLastError());
-        if (client_recv_len <= 0) continue;
-        client_buf[client_recv_len] = 0;
-        printf("%s\n", client_buf);
-
-        /* modify context */
-        printf("parse: %d\n", parse(client_buf, &context));
-        printf("get ip: %s\n", context.ip_addr);
-
-        /* modify http_addr */
-        inet_pton(AF_INET, context.ip_addr, (void*)&http_target_addr);
-        http_addr.sin_addr.S_un.S_addr = http_target_addr.S_un.S_addr;
-        printf("change: %d\n", WSAGetLastError());
-        http_addr.sin_port = htons(context.port);
-
-        /* send request */
-        printf("Sending:%d\n", WSAGetLastError());
-        http_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        setsockopt(http_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&time_out, sizeof(int));
-        connect(http_socket, (struct sockaddr*)&http_addr, sizeof(http_addr));
-        send(http_socket, client_buf, client_recv_len, 0);
-        
-        printf("ReSending: %d\n", WSAGetLastError());
-        while(1) {
-            /* listen response */
-            http_recv_len = recv(http_socket, http_buf, 16348, 0);
-            if (http_recv_len <= 0) break;
-            printf("recv: %d btyes\n", http_recv_len);
-            /* send to client */
-            send(client, http_buf, http_recv_len, 0);
-        }
-        
-        closesocket(client);
-        closesocket(http_socket);
-
-        FREE_CONTEXT(context);
-    }
-}
-
-void combine_test_2() {
-    int ret;
-    http_context context;
-    INIT_CONTEXT(context);
-    while (1) {
-        ret = listen_to_browser(&context);
-        printf("listen ret: %d\n", ret);
-        ret = parse(context.browser_buf, &context);
-        printf("parse ret: %d\n", ret);
-        ret = get_web_page(&context);
-        printf("get ret: %d\n", ret);
-    }
-    FREE_CONTEXT(context);
-}
-
-void combine_test_3() {
+void system_test() {
     simple_cache();
 }
 
@@ -313,15 +208,15 @@ int main(int argc, char* argv[]) {
     err = WSAStartup(MAKEWORD(2, 2), &wsa_data);
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
-    test_queue();
-    test_parse_start_line();
-    test_parse_header();
-    test_parse_host();
-    test_get_ip_from_host();
-    test_get_local_path();
-    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    //test_queue();
+    //test_parse_start_line();
+    //test_parse_header();
+    //test_parse_host();
+    //test_get_ip_from_host();
+    //test_get_local_path();
+    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    //combine_test_3();
+    system_test();
 
     WSACleanup();
     return main_ret;

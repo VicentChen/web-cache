@@ -96,8 +96,6 @@ int parse_host(const char*, http_context*);
 int get_local_path(http_context*);
 int get_ip_from_host(http_context*);
 
-int listen_to_browser(http_context *);
-int get_web_page(http_context *);
 void simple_cache();
 
 #endif
