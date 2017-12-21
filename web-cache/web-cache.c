@@ -403,9 +403,9 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
     char server_buf[16349];
 
     http_context context;
-    int req_len, rep_len;
+    int req_len, rep_len, write_len;
     int contain_rep_header;
-    FILE* web_page_file;
+    FILE* web_page_file = NULL;
     web_cache_exit_flag = 0;
     while (web_cache_exit_flag != 1) {
         INIT_CONTEXT(context);
@@ -416,13 +416,14 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         if (browser_socket == INVALID_SOCKET) printf("accept error: %d\n", WSAGetLastError());
 
         /* receive request */
+        memset(browser_buf, 0, 4097);
         req_len = recv(browser_socket, browser_buf, 4096, 0);
         if (req_len < 0) printf("receive from browser error: %d\n", WSAGetLastError());
         if (req_len == 0) continue;
-        browser_buf[req_len] = 0;
 
         /* parse request message */
         parse(browser_buf, &context);
+        req_len = strlen(browser_buf);
 
         /* initialize web server socket */
         server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -445,13 +446,37 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
             if (rep_len < 0) printf("receive from server error: %d\n", WSAGetLastError());
             if (rep_len <= 0) break;
             server_buf[rep_len] = 0;
+            
             if (contain_rep_header) {
-                /* TODO: parse response header */
-                contain_rep_header = 0; // following messages will not contain
+                parse(server_buf, &context); /* parse response header */
+                contain_rep_header = 0; /* following messages will not contain */
+                if (context.status_code == 200) {
+                    fopen_s(&web_page_file, context.local_path, "w");
+                    write_len = rep_len - (context.msg - server_buf);
+                    fwrite(context.msg, write_len, 1, web_page_file);
+                    fclose(web_page_file);
+                }
             }
-            /* TODO: check status code */
-            /* TODO: 200 - write file */
+            else {
+                /* check status code */
+                if (context.status_code == 200) {
+                    fopen_s(&web_page_file, context.local_path, "a");
+                    write_len = rep_len - (context.msg - server_buf);
+                    fwrite(context.msg, write_len, 1, web_page_file);
+                    fclose(web_page_file);
+                }
+            }
             send(browser_socket, server_buf, rep_len, 0);
+        }
+
+        if (context.status_code == 304) {
+            fopen_s(&web_page_file, context.local_path, "r");
+            while (1) {
+                rep_len = fread(server_buf, 1, 16348, web_page_file);
+                if (rep_len <= 0) break;;
+                send(browser_socket, server_buf, rep_len, 0);
+            }
+            fclose(web_page_file);
         }
 
         /* close socket */
