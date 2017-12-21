@@ -105,6 +105,12 @@ int parse_start_line(const char* msg, http_context* context) {
         memcpy(str, msg + space[0] + 1, alloc_size);
         str[alloc_size - 1] = 0;
         context->status_code = atoi(str);
+
+        /* modify status code from 304 to 200 */
+        if (context->status_code == 304) {
+            memcpy((char*)msg, "HTTP/1.1 200 OK          \r\n", 27);
+        }
+
         free(str);
     }
     else {
@@ -355,7 +361,15 @@ int parse_request(const char* msg, http_context* context) {
 }
 
 int parse_response(const char* msg, http_context* context) {
-    /* TODO: parse headers */
+    int ret;
+    char *header_value = NULL, *header_end = msg, *header_loc = NULL;
+
+    /* parse an never exist header to get header_end */
+    ret = parse_header(msg, "Host", &header_value, &header_loc, &header_end);
+    if (ret != HEADER_NOT_FOUND) THROW_PARSE_REQ_EXCEPTION(ret, header_value);
+
+    /* update context.msg */
+    context->msg = header_end;
     return SUCCESS;
 }
 
@@ -500,6 +514,7 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         }
 
         if (context.status_code == 304) {
+            printf("304\n");
             fopen_s(&web_page_file, context.local_path, "r");
             while (web_page_file == NULL) {
                 Sleep(500);

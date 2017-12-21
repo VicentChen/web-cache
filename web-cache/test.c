@@ -77,37 +77,38 @@ void test_queue() {
     }while(0)
 
 void test_parse_start_line() {
-    char *msg;
+    char msg[100];
     http_context context;
     INIT_CONTEXT(context);
 
     /* request part */
-    msg = "GET http://www.baidu.com/ HTTP/1.1\r\n";
+    strcpy_s(msg, 100, "GET http://www.baidu.com/ HTTP/1.1\r\n");
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_STRING("http://www.baidu.com/", context.url, 21);
     EXPECT_EQ_INT(REQUEST, context.msg_type);
     EXPECT_EQ_INT(GET, context.method_type);
-    msg = "CONNECT www.baidu.com:443 HTTP/1.0\r\n";
+    strcpy_s(msg, 100, "CONNECT www.baidu.com:443 HTTP/1.0\r\n");
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_STRING("www.baidu.com:443", context.url, 17);
     EXPECT_EQ_INT(REQUEST, context.msg_type);
     EXPECT_EQ_INT(NOT_GET, context.method_type);
-    msg = "GEThttp://www.baidu.com/ \r\n";
+    strcpy_s(msg, 100, "GEThttp://www.baidu.com/ \r\n");
     TEST_PARSE(ILLEGAL_START_LINE, msg, context);
     EXPECT_EQ_INT(UNKNOWN, context.msg_type);
     /* response part */
-    msg = "HTTP/1.1 200 OK\r\n";
+    strcpy_s(msg, 100, "HTTP/1.1 200 OK\r\n");
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_INT(200, context.status_code);
     EXPECT_EQ_INT(RESPONSE, context.msg_type);
-    msg = "HTTP/1.1 304 Not Modified\r\n";
+    strcpy_s(msg, 100, "HTTP/1.1 304 Not Modified\r\n");
     TEST_PARSE(SUCCESS, msg, context);
     EXPECT_EQ_INT(304, context.status_code);
     EXPECT_EQ_INT(RESPONSE, context.msg_type);
-    msg = "HTTP/1.1 200OK\r\n";
+    EXPECT_EQ_STRING("HTTP/1.1 200 OK          \r\n", msg, 27);
+    strcpy_s(msg, 100, "HTTP/1.1 200OK\r\n");
     TEST_PARSE(ILLEGAL_START_LINE, msg, context);
     EXPECT_EQ_INT(UNKNOWN, context.msg_type);
-    msg = "";
+    strcpy_s(msg, 100, "");
     TEST_PARSE(ILLEGAL_START_LINE, msg, context);
     EXPECT_EQ_INT(UNKNOWN, context.msg_type);
 
