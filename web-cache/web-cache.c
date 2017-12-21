@@ -474,6 +474,10 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
                 contain_rep_header = 0; /* following messages will not contain */
                 if (context.status_code == 200) {
                     fopen_s(&web_page_file, context.local_path, "w");
+                    while (web_page_file == NULL) {
+                        Sleep(500);
+                        fopen_s(&web_page_file, context.local_path, "w");
+                    }
                     write_len = rep_len - (context.msg - server_buf);
                     fwrite(context.msg, write_len, 1, web_page_file);
                     fclose(web_page_file);
@@ -483,6 +487,10 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
                 /* check status code */
                 if (context.status_code == 200) {
                     fopen_s(&web_page_file, context.local_path, "a");
+                    while (web_page_file == NULL) {
+                        Sleep(500);
+                        fopen_s(&web_page_file, context.local_path, "a");
+                    }
                     write_len = rep_len - (context.msg - server_buf);
                     fwrite(context.msg, write_len, 1, web_page_file);
                     fclose(web_page_file);
@@ -493,6 +501,10 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 
         if (context.status_code == 304) {
             fopen_s(&web_page_file, context.local_path, "r");
+            while (web_page_file == NULL) {
+                Sleep(500);
+                fopen_s(&web_page_file, context.local_path, "r");
+            }
             while (1) {
                 rep_len = fread(server_buf, 1, 16348, web_page_file);
                 if (rep_len <= 0) break;;
