@@ -239,12 +239,12 @@ int main(int argc, char* argv[]) {
     err = WSAStartup(MAKEWORD(2, 2), &wsa_data);
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
-    //test_queue();
-    //test_parse_start_line();
-    //test_parse_header();
-    //test_parse_host();
-    //test_get_ip_from_host();
-    //test_get_local_path();
+    test_queue();
+    test_parse_start_line();
+    test_parse_header();
+    test_parse_host();
+    test_get_ip_from_host();
+    test_get_local_path();
     test_parse_if_modified_since();
     printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 

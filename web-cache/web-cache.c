@@ -181,6 +181,9 @@ int parse_header(const char* msg, const char* name, char** value, char** header_
     }
     if (msg[1] == '\n') msg += 2;
     else return ILLEGAL_HEADERS;
+
+    /* set header end */
+    *header_end = msg;
     if (header_not_found) return HEADER_NOT_FOUND;
 
     /* copy header value */
@@ -194,10 +197,6 @@ int parse_header(const char* msg, const char* name, char** value, char** header_
         memcpy(*value, sub_start, value_size);
         (*value)[value_size - 1] = 0;
     }
-
-    /* set header end */
-    *header_end = msg;
-
     return SUCCESS;
 }
 
