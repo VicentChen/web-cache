@@ -2,6 +2,7 @@
 #define WEB_CACHE_H__
 
 #define DEBUG
+#define GMTTIME
 #define DEFAULT_HTTP_PORT 80
 #define DEFAULT_WEB_CACHE_PORT 63014
 #define DEFAULT_BACKLOG 64

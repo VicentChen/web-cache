@@ -246,7 +246,11 @@ int get_local_path(http_context* context) {
  * 
  * NOTICE: The caller MUST insure that the request message buffer has
  * more than 54 bytes empty space, 19bytes for "If-Modified-Since: ",
- * 33 bytes for the longest http time string, 2 bytes for CRLF
+ * 33 bytes for the longest http time string, 2 bytes for CRLF.
+ * 
+ * Conver to GMT time format modified from :
+ * "https://stackoverflow.com/questions/2726975/
+ * how-can-i-generate-an-rfc1123-date-string-from-c-code-win32"
  * ==================================================================
  * Parameters:
  * ret: 
@@ -271,17 +275,35 @@ int parse_if_modified_since(int ret, char** header_loc, char** header_end, http_
         struct stat file_attr;
         time_t last_mtime;
         struct tm last_mtm;
-        char asctime_str[26];
+        
         char new_header_str[64];
-        int count;
+        int count = 0;
 
         stat(context->local_path, &file_attr);
         last_mtime = file_attr.st_mtime;
         gmtime_s(&last_mtm, &last_mtime);
+
+#ifdef ASCTIME
+        char asctime_str[26];
         asctime_s(asctime_str, 26, &last_mtm); // this function will add '\n'
         sprintf_s(new_header_str, 64, "If-Modified-Since: %s", asctime_str);
         for (count = 0; new_header_str[count] != '\n'; count++);
 
+#endif
+#ifdef GMTTIME
+        const int RFC1123_TIME_LEN = 29;
+        const char *DAY_NAMES[] = 
+        { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+        const char *MONTH_NAMES[] =
+        { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+        char gmttime_str[30];
+        strftime(gmttime_str, RFC1123_TIME_LEN + 1, "---, %d --- %Y %H:%M:%S GMT", &last_mtm);
+        memcpy(gmttime_str, DAY_NAMES[last_mtm.tm_wday], 3);
+        memcpy(gmttime_str + 8, MONTH_NAMES[last_mtm.tm_mon], 3);
+        sprintf_s(new_header_str, 64, "If-Modified-Since: %s", gmttime_str);
+        for (count = 0; new_header_str[count] != 0; count++);
+#endif
         /* copy new header */
         memcpy(msg, new_header_str, count);
         msg += count;
