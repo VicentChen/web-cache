@@ -115,25 +115,33 @@ void test_parse_start_line() {
 }
 
 void test_parse_header() {
-    char *msg, *name, *value, *header_end;
+    char *msg, *name, *value, *header_end, *header_loc;
     msg = "Date: \tTue, 12 Dec 2017 11:40:15 GMT\r\n\r\n"; name = "Date";
-    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_loc, &header_end));
     EXPECT_EQ_STRING("Tue, 12 Dec 2017 11:40:15 GMT", value, 29);
+    EXPECT_EQ_INT(msg+0, header_loc);
     free(value); value = NULL;
     msg = "Host:    www.baidu.com  \t    \r\n\r\n"; name = "Host";
-    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_loc, &header_end));
     EXPECT_EQ_STRING("www.baidu.com", value, 13);
+    EXPECT_EQ_INT(msg + 0, header_loc);
     free(value); value = NULL;
     msg = "Host: \t \t  \r\n\r\n"; name = "Host";
-    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_loc, &header_end));
     EXPECT_EQ_STRING("", value, 0);
+    EXPECT_EQ_INT(msg + 0, header_loc);
+    free(value); value = NULL;
+    msg = "Date: \tTue, 12 Dec 2017 11:40:15 GMT\r\nHost:    www.baidu.com  \t    \r\n\r\n"; name = "Host";
+    EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_loc, &header_end));
+    EXPECT_EQ_STRING("www.baidu.com", value, 13);
+    EXPECT_EQ_INT((msg + 38), header_loc);
     free(value); value = NULL;
     msg = ""; name = "error";
-    EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_header(msg, name, &value, &header_loc, &header_end));
     msg = "ff: fff\r"; name = "error";
-    EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_INT(ILLEGAL_HEADERS, parse_header(msg, name, &value, &header_loc, &header_end));
     msg = "\r\n"; name = "error";
-    EXPECT_EQ_INT(HEADER_NOT_FOUND, parse_header(msg, name, &value, &header_end));
+    EXPECT_EQ_INT(HEADER_NOT_FOUND, parse_header(msg, name, &value, &header_loc, &header_end));
 }
 
 void test_parse_host() {
@@ -174,6 +182,24 @@ void test_get_local_path() {
     free(context.local_path);  context.local_path = NULL;
 }
 
+void test_parse_if_modified_since() {
+    // TODO: add test casess
+    http_context context;
+    context.local_path = "http-examples";
+    char msg[100];
+    char ret[100];
+    strcpy_s(msg, 3, "\r\n");
+    strcpy_s(ret, 48, "If-Modified-Since: Fri Dec 15 01:36:48 2017\r\n\r\n");
+    parse_if_modified_since(HEADER_NOT_FOUND, NULL, msg + 2, &context);
+    EXPECT_EQ_STRING(ret, msg, 47);
+
+    strcpy_s(msg, 59, "If-Modified-Since: Tue, 19 Dec 2017 09:57:26 GMT\r\nsdfsdf\r\n");
+    strcpy_s(ret, 59, "If-Modified-Since: Fri Dec 15 01:36:48 2017     \r\nsdfsdf\r\n");
+    parse_if_modified_since(SUCCESS, msg, msg + 2, &context);
+    EXPECT_EQ_STRING(ret, msg, 58);
+
+}
+
 #define TEST_GET_IP(err, context, ip_addr, length)\
     do {\
         EXPECT_EQ_INT(err, get_ip_from_host(&context));\
@@ -211,11 +237,12 @@ int main(int argc, char* argv[]) {
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
     //test_queue();
-    test_parse_start_line();
+    //test_parse_start_line();
     //test_parse_header();
     //test_parse_host();
     //test_get_ip_from_host();
     //test_get_local_path();
+    test_parse_if_modified_since();
     printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
     //system_test();

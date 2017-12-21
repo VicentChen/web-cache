@@ -6,6 +6,8 @@
 #define DEFAULT_WEB_CACHE_PORT 63014
 #define DEFAULT_BACKLOG 64
 #define DEFAULT_QUEUE_LEN 16
+#define CACHE_DIC "Cache"
+#define CACHE_POSTFIX ".cache"
 
 typedef enum {
     UNKNOWN,
@@ -96,10 +98,11 @@ void* de_queue(queue*);
 
 int parse(const char*, http_context*);
 int parse_start_line(const char*, http_context*);
-int parse_header(const char*, const char*, char**, char**);
+int parse_header(const char*, const char*, char**, char**, char**);
 int parse_host(const char*, http_context*);
 int get_local_path(http_context*);
 int get_ip_from_host(http_context*);
+int parse_if_modified_since(int, char*, char*, http_context*);
 
 void simple_cache();
 

@@ -5,9 +5,14 @@
 #include <WS2tcpip.h>
 #include <WinSock2.h>
 #include <minwinbase.h>
+#include <sys/stat.h> /* stat() */
+#include <time.h> /*  */
+#include <direct.h> /* _mkdir() */
+#include <Shlwapi.h> /* PathFileExistsA() */
 #include <Windows.h>
 #include "web-cache.h"
 // #pragma comment (lib, "Ws2_32.lib") /* add when main add */
+#pragma comment (lib, "Shlwapi.lib")
 
 int web_cache_exit_flag = 0;
 
@@ -132,6 +137,7 @@ int parse_start_line(const char* msg, http_context* context) {
  *   responsibility to free memory allocated for "value".
  *   NOTICE: When headers are empty(or contains only blank - space
  *   and horizontal tab '\t'), "value" will be an empty string.
+ *   NOTICE: When header not found, value will be NULL.
  * header_end:
  *   Updates when headers are syntactically correct.
  *==================================================================
@@ -144,7 +150,7 @@ int parse_start_line(const char* msg, http_context* context) {
  *   Headers are syntatically correct but no header's name matches.
  * SUCCESS.
  */
-int parse_header(const char* msg, const char* name, char** value, char** header_end) {
+int parse_header(const char* msg, const char* name, char** value, char** header_loc, char** header_end) {
     int name_len = strlen(name);
     const char *sub_start = NULL;
     const char *sub_end = NULL;
@@ -158,6 +164,7 @@ int parse_header(const char* msg, const char* name, char** value, char** header_
         if (*msg == 0) return ILLEGAL_HEADERS;
         if (strncmp(msg, name, name_len) == 0) {
             /* locate specific header */
+            *header_loc = msg;
             for (msg; *msg != ':'; msg++); // skip header name
             msg++; // skip ':'
             for (msg; *msg == ' ' || *msg == '\t'; msg++); // skip optional space
@@ -195,10 +202,9 @@ int parse_header(const char* msg, const char* name, char** value, char** header_
 }
 
 /**
- * This function will parse the host and port from
- * the "host" string. If the "host" string is correctly
- * parsed, this function will allocate memory for
- * "context"'s host string.
+ * This function will parse the host and port from the "host" string.
+ * If the "host" string is correctly parsed, this function will 
+ * allocate memory for "context"'s host string.
  */
 int parse_host(const char* host, http_context* context) {
     assert(host != NULL);
@@ -226,11 +232,68 @@ int parse_host(const char* host, http_context* context) {
 }
 
 int get_local_path(http_context* context) {
-    /* local_path = host + '/' + url */
+    /* local_path = host + '/' + hash(url) */
     int str_len = strlen(context->host) + strlen(context->url) + 2;
     char *str = (char*)malloc(str_len);
     sprintf_s(str, str_len, "%s/%lu", context->host, hash(context->url));
     context->local_path = str;
+    return SUCCESS;
+}
+
+/**
+ * This function will change the request message. If there is a 
+ * "If-Modified-Since" header in the message, It will modify the value
+ * of that header. If not, it will add a header at the end.
+ * 
+ * NOTICE: The caller MUST insure that the request message buffer has
+ * more than 54 bytes empty space, 19bytes for "If-Modified-Since: ",
+ * 33 bytes for the longest http time string, 2 bytes for CRLF
+ * ==================================================================
+ * Parameters:
+ * ret: 
+ *   The return code of parse_header(), it can be SUCCESS or 
+ *   HEADER_NOT_FOUND.
+ * header_loc:
+ *   The location of the "If-Modified-Since" header, it can be NULL.
+ * header_end:
+ *   The location of the header end, it MUST NOT be NULL.
+ */
+int parse_if_modified_since(int ret, char* header_loc, char* header_end, http_context *context) {
+    char *msg = NULL;
+    if (ret == HEADER_NOT_FOUND) 
+        msg = header_end - 2; /* return before CRLF */
+    else 
+        msg = header_loc;
+    assert(msg != NULL);
+
+    if (PathFileExistsA(context->local_path)) {
+
+        /* get file last modified time*/
+        struct stat file_attr;
+        time_t last_mtime;
+        struct tm last_mtm;
+        char asctime_str[26];
+        char new_header_str[64];
+        int count;
+
+        stat(context->local_path, &file_attr);
+        last_mtime = file_attr.st_mtime;
+        gmtime_s(&last_mtm, &last_mtime);
+        asctime_s(asctime_str, 26, &last_mtm); // this function will add '\n'
+        sprintf_s(new_header_str, 64, "If-Modified-Since: %s", asctime_str);
+        for (count = 0; new_header_str[count] != '\n'; count++);
+
+        /* copy new header */
+        memcpy(msg, new_header_str, count);
+        msg += count;
+        if (ret == HEADER_NOT_FOUND) {
+            msg[0] = '\r'; msg[1] = '\n'; msg[2] = '\r'; msg[3] = '\n'; msg[4] = 0;
+        }
+        else {
+            for (msg; *msg != '\r'; *msg++ = ' ');
+        }
+    }
+
     return SUCCESS;
 }
 
@@ -244,20 +307,24 @@ int get_local_path(http_context* context) {
 
 int parse_request(const char* msg, http_context* context) {
     int ret;
-    char *header_value = NULL, *header_end = msg;
+    char *header_value = NULL, *header_end = msg, *header_loc = NULL;
     
     /* parse header "Host" */
-    ret = parse_header(msg, "Host", &header_value, &header_end);
+    ret = parse_header(msg, "Host", &header_value, &header_loc, &header_end);
     THROW_PARSE_REQ_EXCEPTION(ret, header_value);
     ret = parse_host(header_value, context);
     THROW_PARSE_REQ_EXCEPTION(ret, header_value);
     free(header_value);
+    get_ip_from_host(context); /* get ip */    
+    get_local_path(context); /* update local path*/
 
-    /* get ip */
-    get_ip_from_host(context);
-
-    /* update local path*/
-    get_local_path(context);
+    /* parse header "If-Modified-Since" */
+    ret = parse_header(msg, "If-Modified-Since", &header_value, &header_loc, &header_end);
+    if (ret != HEADER_NOT_FOUND) /* ignore HEADER_NOT_FOUND */
+        THROW_PARSE_REQ_EXCEPTION(ret, header_value);
+    ret = parse_if_modified_since(ret, header_loc,  header_end, context);
+    THROW_PARSE_REQ_EXCEPTION(ret, header_value);
+    free(header_value);
 
     /* update context.msg */
     context->msg = header_end;
@@ -321,8 +388,6 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
     int ret;
     int timeout = 1000;
 
-    /* TODO: conditional create directory */
-
     /* get server socket */
     SOCKET cache_socket = *(SOCKET*)lpParam;
 
@@ -348,6 +413,7 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         browser_addr_len = sizeof(browser_addr);
         browser_socket = accept(cache_socket, (struct sockaddr*)&browser_addr, &browser_addr_len);
         if (browser_socket == INVALID_SOCKET) printf("accept error: %d\n", WSAGetLastError());
+
         /* receive request */
         req_len = recv(browser_socket, browser_buf, 4096, 0);
         if (req_len < 0) printf("receive from browser error: %d\n", WSAGetLastError());
@@ -357,8 +423,6 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         /* parse request */
         parse(browser_buf, &context);
 
-        /* TODO: check cache (only support GET method) */
-
         /* initialize web server socket */
         server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         server_addr.sin_family = AF_INET;
@@ -366,6 +430,10 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         ret = inet_pton(AF_INET, context.ip_addr, &server_addr.sin_addr);
         if (ret != 1) printf("IP convert to string error: %d\n", WSAGetLastError());
         setsockopt(server_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(int));
+
+        /* conditional create dirctory for host */
+        ret = _mkdir(context.host);
+        /* TODO: check cache (only support GET method) */
 
         /* send request */
         connect(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));
@@ -389,6 +457,10 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 
 void simple_cache() {
     int ret;
+
+    /* conditional create directory - Cache */
+    ret = _mkdir(CACHE_DIC);
+    ret = _chdir(CACHE_DIC); // switch to cache directory
 
     /* initialize web cache socket */
     SOCKET cache_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
