@@ -85,12 +85,6 @@ int parse_start_line(const char* msg, http_context* context) {
     if (msg[i + 1] != '\n') return ILLEGAL_START_LINE;
 
     /* only legal message will execute codes below */
-    /* check method_type (currently support GET method only )*/
-    if (msg[0] == 'G' && msg[1] == 'E' && msg[2] == 'T')
-        context->method_type = GET;
-    else
-        context->method_type = NOT_GET;
-
     /* update "msg" in context */
     context->msg = msg + i + 2;
 
@@ -114,6 +108,12 @@ int parse_start_line(const char* msg, http_context* context) {
         free(str);
     }
     else {
+        /* check method_type (currently support GET method only )*/
+        if (msg[0] == 'G' && msg[1] == 'E' && msg[2] == 'T')
+            context->method_type = GET;
+        else
+            context->method_type = NOT_GET;
+
         /* request: set url */
         context->msg_type = REQUEST;
 
@@ -240,7 +240,7 @@ int get_local_path(http_context* context) {
     /* local_path = host + '/' + hash(url) */
     int str_len = strlen(context->host) + strlen(context->url) + 2;
     char *str = (char*)malloc(str_len);
-    sprintf_s(str, str_len, "%s/%lu", context->host, hash(context->url));
+    sprintf_s(str, str_len, "%s\\%lu", context->host, hash(context->url));
     context->local_path = str;
     return SUCCESS;
 }
@@ -483,46 +483,60 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
             if (rep_len <= 0) break;
             server_buf[rep_len] = 0;
             
-            if (contain_rep_header) {
-                parse(server_buf, &context); /* parse response header */
-                contain_rep_header = 0; /* following messages will not contain */
-                if (context.status_code == 200) {
-                    fopen_s(&web_page_file, context.local_path, "w");
-                    while (web_page_file == NULL) {
-                        Sleep(500);
-                        fopen_s(&web_page_file, context.local_path, "w");
+            if (context.method_type == GET) {
+                /* GET method messages */
+                if (contain_rep_header) {
+                    parse(server_buf, &context); /* parse response header */
+                    contain_rep_header = 0; /* following messages will not contain */
+                    if (context.status_code == 200) {
+                        fopen_s(&web_page_file, context.local_path, "wb");
+                        while (web_page_file == NULL) {
+                            Sleep(500);
+                            fopen_s(&web_page_file, context.local_path, "wb");
+                        }
+                        write_len = rep_len - (context.msg - server_buf);
+                        fwrite(context.msg, write_len, 1, web_page_file);
+                        fclose(web_page_file);
                     }
-                    write_len = rep_len - (context.msg - server_buf);
-                    fwrite(context.msg, write_len, 1, web_page_file);
-                    fclose(web_page_file);
+                    if (context.status_code == 304) break;
                 }
+                else {
+                    /* check status code */
+                    if (context.status_code == 200) {
+                        fopen_s(&web_page_file, context.local_path, "ab");
+                        while (web_page_file == NULL) {
+                            Sleep(500);
+                            fopen_s(&web_page_file, context.local_path, "ab");
+                        }
+                        write_len = rep_len;
+                        fwrite(server_buf, write_len, 1, web_page_file);
+                        fclose(web_page_file);
+                    }
+                }
+                send(browser_socket, server_buf, rep_len, 0);
             }
             else {
-                /* check status code */
-                if (context.status_code == 200) {
-                    fopen_s(&web_page_file, context.local_path, "a");
-                    while (web_page_file == NULL) {
-                        Sleep(500);
-                        fopen_s(&web_page_file, context.local_path, "a");
-                    }
-                    write_len = rep_len - (context.msg - server_buf);
-                    fwrite(context.msg, write_len, 1, web_page_file);
-                    fclose(web_page_file);
+                /* NOT GET method messages */
+                while (1) {
+                    rep_len = recv(server_socket, server_buf, 16348, 0);
+                    if (rep_len < 0) printf("receive from server error: %d\n", WSAGetLastError());
+                    if (rep_len <= 0) break;
+                    server_buf[rep_len] = 0;
+                    send(browser_socket, server_buf, rep_len, 0);
                 }
             }
-            send(browser_socket, server_buf, rep_len, 0);
         }
 
         if (context.status_code == 304) {
             printf("304\n");
-            fopen_s(&web_page_file, context.local_path, "r");
+            fopen_s(&web_page_file, context.local_path, "rb");
             while (web_page_file == NULL) {
                 Sleep(500);
-                fopen_s(&web_page_file, context.local_path, "r");
+                fopen_s(&web_page_file, context.local_path, "rb");
             }
             while (1) {
                 rep_len = fread(server_buf, 1, 16348, web_page_file);
-                if (rep_len <= 0) break;;
+                if (rep_len <= 0) break;
                 send(browser_socket, server_buf, rep_len, 0);
             }
             fclose(web_page_file);
@@ -562,6 +576,6 @@ void simple_cache() {
     for (int i = 0; i < 32; i++)
         threads[i] = CreateThread(NULL, 0, simple_cache_thread, &cache_socket, 0, NULL);
 
-    WaitForMultipleObjects(4, threads, TRUE, INFINITE);
+    WaitForMultipleObjects(1, threads, TRUE, INFINITE);
     closesocket(cache_socket);
 }
