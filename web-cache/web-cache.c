@@ -258,12 +258,12 @@ int get_local_path(http_context* context) {
  * header_end:
  *   The location of the header end, it MUST NOT be NULL.
  */
-int parse_if_modified_since(int ret, char* header_loc, char* header_end, http_context *context) {
+int parse_if_modified_since(int ret, char** header_loc, char** header_end, http_context *context) {
     char *msg = NULL;
     if (ret == HEADER_NOT_FOUND) 
-        msg = header_end - 2; /* return before CRLF */
+        msg = *header_end - 2; /* return before CRLF */
     else 
-        msg = header_loc;
+        msg = *header_loc;
     assert(msg != NULL);
 
     if (PathFileExistsA(context->local_path)) {
@@ -287,7 +287,8 @@ int parse_if_modified_since(int ret, char* header_loc, char* header_end, http_co
         memcpy(msg, new_header_str, count);
         msg += count;
         if (ret == HEADER_NOT_FOUND) {
-            msg[0] = '\r'; msg[1] = '\n'; msg[2] = '\r'; msg[3] = '\n'; msg[4] = 0;
+            msg[0] = '\r'; msg[1] = '\n'; msg[2] = '\r'; msg[3] = '\n';
+            context->msg = *header_end = msg + 4; // update header_end
         }
         else {
             for (msg; *msg != '\r'; *msg++ = ' ');
@@ -322,7 +323,7 @@ int parse_request(const char* msg, http_context* context) {
     ret = parse_header(msg, "If-Modified-Since", &header_value, &header_loc, &header_end);
     if (ret != HEADER_NOT_FOUND) /* ignore HEADER_NOT_FOUND */
         THROW_PARSE_REQ_EXCEPTION(ret, header_value);
-    ret = parse_if_modified_since(ret, header_loc,  header_end, context);
+    ret = parse_if_modified_since(ret, &header_loc, &header_end, context);
     THROW_PARSE_REQ_EXCEPTION(ret, header_value);
     free(header_value);
 
@@ -420,7 +421,7 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         if (req_len == 0) continue;
         browser_buf[req_len] = 0;
 
-        /* parse request */
+        /* parse request message */
         parse(browser_buf, &context);
 
         /* initialize web server socket */
@@ -433,7 +434,6 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 
         /* conditional create dirctory for host */
         ret = _mkdir(context.host);
-        /* TODO: check cache (only support GET method) */
 
         /* send request */
         connect(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));

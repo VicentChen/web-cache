@@ -102,7 +102,7 @@ int parse_header(const char*, const char*, char**, char**, char**);
 int parse_host(const char*, http_context*);
 int get_local_path(http_context*);
 int get_ip_from_host(http_context*);
-int parse_if_modified_since(int, char*, char*, http_context*);
+int parse_if_modified_since(int, char**, char**, http_context*);
 
 void simple_cache();
 

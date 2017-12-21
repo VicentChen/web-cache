@@ -185,17 +185,21 @@ void test_get_local_path() {
 void test_parse_if_modified_since() {
     http_context context;
     context.local_path = "file-time-test.txt";
-    char msg[100];
-    char ret[100];
+    char msg_a[100]; char* msg;
+    char ret_a[100]; char *ret;
+    msg = msg_a + 2; ret = ret_a;
+    memset(msg_a, 0, 100); memset(ret_a, 0, 100);
     strcpy_s(msg, 3, "\r\n");
     strcpy_s(ret, 48, "If-Modified-Since: Thu Dec 21 03:37:20 2017\r\n\r\n");
-    parse_if_modified_since(HEADER_NOT_FOUND, NULL, msg + 2, &context);
-    EXPECT_EQ_STRING(ret, msg, 47);
+    parse_if_modified_since(HEADER_NOT_FOUND, NULL, &msg, &context);
+    EXPECT_EQ_STRING(ret_a, msg_a, 47);
 
+    msg = msg_a; ret = ret_a;
+    memset(msg_a, 0, 100); memset(ret_a, 0, 100);
     strcpy_s(msg, 59, "If-Modified-Since: Tue, 19 Dec 2017 09:57:26 GMT\r\nsdfsdf\r\n");
     strcpy_s(ret, 59, "If-Modified-Since: Thu Dec 21 03:37:20 2017     \r\nsdfsdf\r\n");
-    parse_if_modified_since(SUCCESS, msg, msg + 2, &context);
-    EXPECT_EQ_STRING(ret, msg, 58);
+    parse_if_modified_since(SUCCESS, &msg, &msg, &context);
+    EXPECT_EQ_STRING(ret_a, msg_a, 58);
 
 }
 
