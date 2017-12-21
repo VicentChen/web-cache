@@ -124,12 +124,12 @@ void test_parse_header() {
     msg = "Host:    www.baidu.com  \t    \r\n\r\n"; name = "Host";
     EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_loc, &header_end));
     EXPECT_EQ_STRING("www.baidu.com", value, 13);
-    EXPECT_EQ_INT(msg + 0, header_loc);
+    EXPECT_EQ_INT((msg + 0), header_loc);
     free(value); value = NULL;
     msg = "Host: \t \t  \r\n\r\n"; name = "Host";
     EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_loc, &header_end));
     EXPECT_EQ_STRING("", value, 0);
-    EXPECT_EQ_INT(msg + 0, header_loc);
+    EXPECT_EQ_INT((msg + 0), header_loc);
     free(value); value = NULL;
     msg = "Date: \tTue, 12 Dec 2017 11:40:15 GMT\r\nHost:    www.baidu.com  \t    \r\n\r\n"; name = "Host";
     EXPECT_EQ_INT(SUCCESS, parse_header(msg, name, &value, &header_loc, &header_end));
@@ -193,6 +193,7 @@ void test_parse_if_modified_since() {
     strcpy_s(ret, 48, "If-Modified-Since: Thu Dec 21 03:37:20 2017\r\n\r\n");
     parse_if_modified_since(HEADER_NOT_FOUND, NULL, &msg, &context);
     EXPECT_EQ_STRING(ret_a, msg_a, 47);
+    EXPECT_EQ_INT(msg, (msg_a + 47));
 
     msg = msg_a; ret = ret_a;
     memset(msg_a, 0, 100); memset(ret_a, 0, 100);
@@ -200,6 +201,7 @@ void test_parse_if_modified_since() {
     strcpy_s(ret, 59, "If-Modified-Since: Thu Dec 21 03:37:20 2017     \r\nsdfsdf\r\n");
     parse_if_modified_since(SUCCESS, &msg, &msg, &context);
     EXPECT_EQ_STRING(ret_a, msg_a, 58);
+    EXPECT_EQ_INT(msg, msg); // header_end will not change here
 
 }
 
@@ -239,16 +241,16 @@ int main(int argc, char* argv[]) {
     err = WSAStartup(MAKEWORD(2, 2), &wsa_data);
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
-    test_queue();
-    test_parse_start_line();
-    test_parse_header();
-    test_parse_host();
-    test_get_ip_from_host();
-    test_get_local_path();
-    test_parse_if_modified_since();
-    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    //test_queue();
+    //test_parse_start_line();
+    //test_parse_header();
+    //test_parse_host();
+    //test_get_ip_from_host();
+    //test_get_local_path();
+    //test_parse_if_modified_since();
+    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    //system_test();
+    system_test();
 
     WSACleanup();
     return main_ret;

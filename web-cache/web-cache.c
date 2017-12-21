@@ -404,6 +404,7 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 
     http_context context;
     int req_len, rep_len;
+    int contain_rep_header;
     FILE* web_page_file;
     web_cache_exit_flag = 0;
     while (web_cache_exit_flag != 1) {
@@ -437,11 +438,19 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         /* send request */
         connect(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));
         ret = send(server_socket, browser_buf, req_len, 0);
+
+        contain_rep_header = 1; // first message always contains response header
         while(1) {
             rep_len = recv(server_socket, server_buf, 16348, 0);
             if (rep_len < 0) printf("receive from server error: %d\n", WSAGetLastError());
             if (rep_len <= 0) break;
             server_buf[rep_len] = 0;
+            if (contain_rep_header) {
+                /* TODO: parse response header */
+                contain_rep_header = 0; // following messages will not contain
+            }
+            /* TODO: check status code */
+            /* TODO: 200 - write file */
             send(browser_socket, server_buf, rep_len, 0);
         }
 
