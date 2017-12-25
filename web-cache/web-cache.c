@@ -14,7 +14,10 @@
 // #pragma comment (lib, "Ws2_32.lib") /* add when main add */
 #pragma comment (lib, "Shlwapi.lib")
 
-int web_cache_exit_flag = 0;
+char *workspace = NULL;
+int port = DEFAULT_WEB_CACHE_PORT;
+
+static int web_cache_exit_flag = 0;
 
 /**
  * djb2 string hash algorithm
@@ -29,6 +32,33 @@ unsigned long hash(unsigned char *str)
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
     return hash;
+}
+
+#define FILE_BUF_LEN 1024
+int parse_config_file(const char* file_name) {
+    char buf[FILE_BUF_LEN];
+    FILE *file = NULL;
+    int line_len = 0;
+    fopen_s(&file, file_name, "r");
+    if (file == NULL) return FILE_NOT_EXIST;
+    
+    /* ignore comments and blank lines */
+    while (fgets(buf, FILE_BUF_LEN, file) != NULL)
+        if (buf[0] != '\n' && buf[0] != '#') break;
+    /* first config line: workspace */
+    line_len = strlen(buf); // ignore '\n'
+    workspace = (char*)malloc(line_len);
+    memcpy(workspace, buf, line_len);
+    workspace[line_len - 1] = 0;
+
+    /* ignore comments and blank lines */
+    while (fgets(buf, FILE_BUF_LEN, file) != NULL)
+        if (buf[0] != '\n' && buf[0] != '#') break;
+    /* second config line: port */
+    sscanf_s(buf, "%d", &port);
+
+    fclose(file);
+    return SUCCESS;
 }
 
 #define SUPPORT_SPACE 2

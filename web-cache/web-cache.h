@@ -8,7 +8,7 @@
 #define DEFAULT_BACKLOG 64
 #define DEFAULT_QUEUE_LEN 16
 #define CACHE_DIC "Cache"
-#define CACHE_POSTFIX ".cache"
+#define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */
 
 typedef enum {
     UNKNOWN,
@@ -21,6 +21,7 @@ typedef enum {
 /* status */
 enum {
     SUCCESS,
+    FILE_NOT_EXIST,
     ILLEGAL_START_LINE,
     ILLEGAL_HEADERS,
     HEADER_NOT_FOUND,
@@ -33,7 +34,6 @@ enum {
     RECV_EMPTY
 };
 
-#define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */
 typedef struct {
     msg_type method_type;
     msg_type msg_type;
@@ -46,10 +46,6 @@ typedef struct {
     char* host;
     char* local_path;
 
-    SOCKET browser_socket;
-    struct sockaddr_in browser_addr;
-    int browser_addr_len;
-    char browser_buf[1025]; // TODO: optimize, not a fixed size
 }http_context;
 
 #define INIT_CONTEXT(context)\
@@ -71,7 +67,13 @@ typedef struct {
         if(context.local_path) { free(context.local_path); context.local_path = NULL; }\
     }while(0)
 
+/* variables for configuration */
+extern char *workspace;
+extern int port;
+
 unsigned long hash(unsigned char*);
+
+int parse_config_file(const char*);
 
 int parse(const char*, http_context*);
 int parse_start_line(const char*, http_context*);

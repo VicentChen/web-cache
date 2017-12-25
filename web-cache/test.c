@@ -30,6 +30,13 @@ static int test_pass = 0;
 #define EXPECT_EQ_STRING(expect, actual, alength) \
     EXPECT_EQ_BASE(strncmp(expect, actual, alength + 1) == 0, expect, actual, "%s")
 
+void test_parse_config_file() {
+    EXPECT_EQ_INT(SUCCESS, parse_config_file("web-cache.cfg"));
+    EXPECT_EQ_STRING("./Cache", workspace, 7);
+    EXPECT_EQ_INT(port, 63014);
+    EXPECT_EQ_INT(FILE_NOT_EXIST, parse_config_file(""));
+}
+
 #define TEST_PARSE(err, msg, context)\
     do {\
         FREE_CONTEXT(context);\
@@ -231,9 +238,10 @@ int main(int argc, char* argv[]) {
     //test_get_ip_from_host();
     //test_get_local_path();
     //test_parse_if_modified_since();
-    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    test_parse_config_file();
+    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    system_test();
+    //system_test();
 
     WSACleanup();
     return main_ret;
