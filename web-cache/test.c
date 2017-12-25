@@ -30,46 +30,6 @@ static int test_pass = 0;
 #define EXPECT_EQ_STRING(expect, actual, alength) \
     EXPECT_EQ_BASE(strncmp(expect, actual, alength + 1) == 0, expect, actual, "%s")
 
-void test_queue() {
-    int num_len = 4;
-    int num[4];
-    queue q;
-    init_queue(q); set_queue_size(&q, num_len);
-    for (int i = 0; i < num_len; i++) num[i] = i;
-
-    for (int i = 0; i < num_len; i++)
-        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
-    EXPECT_EQ_INT(QUEUE_FULL, en_queue(&q, num));
-    for (int i = 0; i < num_len; i++)
-        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
-    EXPECT_EQ_INT(0, ((int)de_queue(&q)));
-
-    for (int i = 0; i < num_len - 1; i++)
-        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
-    for (int i = 0; i < num_len - 1; i++)
-        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
-    for (int i = 0; i < num_len; i++)
-        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
-    EXPECT_EQ_INT(QUEUE_FULL, en_queue(&q, num));
-    for (int i = 0; i < num_len; i++)
-        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
-    EXPECT_EQ_INT(0, ((int)de_queue(&q)));
-
-    for (int i = 0; i < num_len / 2; i++)
-        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
-    for (int i = 0; i < num_len / 2; i++)
-        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
-    for (int i = 0; i < num_len; i++) num[i] = i;
-    for (int i = 0; i < num_len; i++)
-        EXPECT_EQ_INT(SUCCESS, en_queue(&q, num + i));
-    EXPECT_EQ_INT(QUEUE_FULL, en_queue(&q, num));
-    for (int i = 0; i < num_len; i++)
-        EXPECT_EQ_INT(num[i], *(int*)(de_queue(&q)));
-    EXPECT_EQ_INT(0, ((int)de_queue(&q)));
-
-    free_queue(q);
-}
-
 #define TEST_PARSE(err, msg, context)\
     do {\
         FREE_CONTEXT(context);\

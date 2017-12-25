@@ -31,43 +31,6 @@ unsigned long hash(unsigned char *str)
     return hash;
 }
 
-// not thread safe
-int get_queue_size(queue *q) {
-    assert(q != NULL);
-    return q->size - 1;
-}
-
-// not thread safe
-int set_queue_size(queue* q, int size) {
-    q->size = size + 1;
-    q->items = (void**)realloc(q->items, sizeof(void*) * q->size);
-    if (q->items) return SUCCESS;
-    else return OUT_OF_MEMORY;
-}
-
-int en_queue(queue* q, void* item_ptr) {
-    assert(q != NULL);
-    WaitForSingleObject(q->mutex, INFINITE);
-    if ((q->tail + 1) % q->size == q->head) {
-        ReleaseMutex(q->mutex);
-        return QUEUE_FULL;
-    }
-    q->items[q->tail] = item_ptr;
-    q->tail = (q->tail + 1) % q->size;
-    ReleaseMutex(q->mutex);
-    return SUCCESS;
-}
-
-void* de_queue(queue *q) {
-    assert(q != NULL);
-    void *result;
-    if (q->head == q->tail) return NULL;
-    int ret = q->head;
-    q->head = (q->head + 1) % q->size;
-    result = q->items[ret];
-    return q->items[ret];
-}
-
 #define SUPPORT_SPACE 2
 int parse_start_line(const char* msg, http_context* context) {
     

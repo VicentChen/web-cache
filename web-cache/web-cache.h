@@ -71,31 +71,7 @@ typedef struct {
         if(context.local_path) { free(context.local_path); context.local_path = NULL; }\
     }while(0)
 
-typedef struct {
-    void **items;
-    int size;
-    int head;
-    int tail;
-    HANDLE mutex;
-}queue;
-
-#define init_queue(q)\
-    do{\
-        q.items = NULL;\
-        q.head = q.tail = q.size = 0;\
-        q.mutex = CreateMutex(NULL, FALSE, NULL);\
-    }while(0)
-
-#define free_queue(q)\
-    do{\
-        if (q.items) free(q.items);\
-    } while(0)
-
 unsigned long hash(unsigned char*);
-int get_queue_size(queue*);
-int set_queue_size(queue*, int);
-int en_queue(queue*, void*);
-void* de_queue(queue*);
 
 int parse(const char*, http_context*);
 int parse_start_line(const char*, http_context*);
