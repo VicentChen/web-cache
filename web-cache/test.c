@@ -139,12 +139,12 @@ void test_get_local_path() {
     char* ans;
     INIT_CONTEXT(context);
     context.host = "www.baidu.com"; context.url = "http://www.baidu.com/";
-    ans = "www.baidu.com/2089601105";
+    ans = "www.baidu.com\\2089601105";
     get_local_path(&context);
     EXPECT_EQ_STRING(ans, context.local_path, 24);
     free(context.local_path);  context.local_path = NULL;
     context.host = "tools.ietf.org"; context.url = "https://tools.ietf.org/html/rfc1630";
-    ans = "tools.ietf.org/3750935845";
+    ans = "tools.ietf.org\\3750935845";
     get_local_path(&context);
     EXPECT_EQ_STRING(ans, context.local_path, 25);
     free(context.local_path);  context.local_path = NULL;
@@ -180,7 +180,7 @@ void test_parse_if_modified_since() {
     msg = msg_a + 2; ret = ret_a;
     memset(msg_a, 0, 100); memset(ret_a, 0, 100);
     strcpy_s(msg, 3, "\r\n");
-    strcpy_s(ret, 53, "If-Modified-Since: Thu, 21 Dec 2017 05:40:20 GMT\r\n\r\n");
+    strcpy_s(ret, 53, "If-Modified-Since: Thu, 21 Dec 2017 03:37:20 GMT\r\n\r\n");
     parse_if_modified_since(HEADER_NOT_FOUND, NULL, &msg, &context);
     EXPECT_EQ_STRING(ret_a, msg_a, 52);
     EXPECT_EQ_INT(msg, (msg_a + 52));
@@ -188,7 +188,7 @@ void test_parse_if_modified_since() {
     msg = msg_a; ret = ret_a;
     memset(msg_a, 0, 100); memset(ret_a, 0, 100);
     strcpy_s(msg, 59, "If-Modified-Since: Tue, 19 Dec 2017 09:57:26 GMT\r\nsdfsdf\r\n");
-    strcpy_s(ret, 59, "If-Modified-Since: Thu, 21 Dec 2017 05:40:20 GMT\r\nsdfsdf\r\n");
+    strcpy_s(ret, 59, "If-Modified-Since: Thu, 21 Dec 2017 03:37:20 GMT\r\nsdfsdf\r\n");
     parse_if_modified_since(SUCCESS, &msg, &msg, &context);
     EXPECT_EQ_STRING(ret_a, msg_a, 58);
     EXPECT_EQ_INT(msg, msg); // header_end will not change here
@@ -231,17 +231,16 @@ int main(int argc, char* argv[]) {
     err = WSAStartup(MAKEWORD(2, 2), &wsa_data);
     if (err) { printf("Line: %d WSAStartup failed!\n", __LINE__); return 1; }
 
-    //test_queue();
     //test_parse_start_line();
     //test_parse_header();
     //test_parse_host();
     //test_get_ip_from_host();
     //test_get_local_path();
     //test_parse_if_modified_since();
-    test_parse_config_file();
-    printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+    //test_parse_config_file();
+    //printf("%d/%d (%3.2f%%) passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
 
-    //system_test();
+    system_test();
 
     WSACleanup();
     return main_ret;

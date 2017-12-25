@@ -14,10 +14,11 @@
 // #pragma comment (lib, "Ws2_32.lib") /* add when main add */
 #pragma comment (lib, "Shlwapi.lib")
 
-char *workspace = NULL;
+char *workspace = DEFAULT_CACHE_DIC;
 int port = DEFAULT_WEB_CACHE_PORT;
 
 static int web_cache_exit_flag = 0;
+static int timeout = 1000;
 
 /**
  * djb2 string hash algorithm
@@ -205,7 +206,10 @@ int parse_header(const char* msg, const char* name, char** value, char** header_
  * allocate memory for "context"'s host string.
  */
 int parse_host(const char* host, http_context* context) {
-    assert(host != NULL);
+    if (host == NULL) {
+        printf("Fatal error: Host is null when parsing %s\n", context->url);
+        exit(ILLEGAL_HEADERS);
+    }
     int host_len;
     const char* host_end = host;
 
@@ -266,7 +270,10 @@ int parse_if_modified_since(int ret, char** header_loc, char** header_end, http_
         msg = *header_end - 2; /* return before CRLF */
     else 
         msg = *header_loc;
-    assert(msg != NULL);
+    if (msg == NULL) {
+        printf("Fatal error: If-Modified-Since is null when parsing %s\n", context->url);
+        exit(ILLEGAL_HEADERS);
+    }
 
     if (PathFileExistsA(context->local_path)) {
 
@@ -367,8 +374,14 @@ int parse_response(const char* msg, http_context* context) {
 }
 
 int parse(const char* msg, http_context* context) {
-    assert(msg != NULL);
-    assert(context != NULL);
+    if (msg == NULL) {
+        printf("Fatal error: message is null\n");
+        exit(-1);
+    }
+    if (context == NULL) {
+        printf("Fatal error: context is null\n");
+        exit(-1);
+    }
     int ret = SUCCESS;
     context->msg = msg;
     ret = parse_start_line(context->msg, context);
@@ -386,8 +399,6 @@ int parse(const char* msg, http_context* context) {
 }
 
 int get_ip_from_host(http_context* context) {
-    assert(context != NULL);
-
     struct addrinfo hints;
     struct addrinfo* result = NULL;
     struct sockaddr_in* sockaddr;
@@ -413,9 +424,10 @@ int get_ip_from_host(http_context* context) {
     return SUCCESS;
 }
 
+#define BROWSER_BUF_LEN 4097
+#define SERVER_BUF_LEN 16349
 DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
     int ret;
-    int timeout = 1000;
 
     /* get server socket */
     SOCKET cache_socket = *(SOCKET*)lpParam;
@@ -424,12 +436,12 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
     SOCKET browser_socket;
     struct sockaddr_in browser_addr;
     int browser_addr_len;
-    char browser_buf[4097];
+    char browser_buf[BROWSER_BUF_LEN];
 
     /* initialize web server socket */
     SOCKET server_socket;
     struct sockaddr_in server_addr;
-    char server_buf[16349];
+    char server_buf[SERVER_BUF_LEN];
 
     http_context context;
     int req_len, rep_len, write_len;
@@ -442,12 +454,16 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         /* accept connection */
         browser_addr_len = sizeof(browser_addr);
         browser_socket = accept(cache_socket, (struct sockaddr*)&browser_addr, &browser_addr_len);
-        if (browser_socket == INVALID_SOCKET) printf("accept error: %d\n", WSAGetLastError());
+#ifdef DEBUG
+        if (browser_socket == INVALID_SOCKET)  printf("accept error: %d\n", WSAGetLastError());
+#endif
 
         /* receive request */
-        memset(browser_buf, 0, 4097);
-        req_len = recv(browser_socket, browser_buf, 4096, 0);
+        memset(browser_buf, 0, BROWSER_BUF_LEN);
+        req_len = recv(browser_socket, browser_buf, BROWSER_BUF_LEN - 1, 0);
+#ifdef DEBUG
         if (req_len < 0) printf("receive from browser error: %d\n", WSAGetLastError());
+#endif
         if (req_len == 0) continue;
 
         /* parse request message */
@@ -459,7 +475,9 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
         server_addr.sin_family = AF_INET;
         server_addr.sin_port = htons(context.port);
         ret = inet_pton(AF_INET, context.ip_addr, &server_addr.sin_addr);
+#ifdef DEBUG
         if (ret != 1) printf("IP convert to string error: %d\n", WSAGetLastError());
+#endif
         setsockopt(server_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(int));
 
         /* conditional create dirctory for host */
@@ -471,11 +489,15 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 
         contain_rep_header = 1; // first message always contains response header
         while(1) {
-            rep_len = recv(server_socket, server_buf, 16348, 0);
-            if (rep_len < 0) printf("receive from server error: %d\n", WSAGetLastError());
+            rep_len = recv(server_socket, server_buf, SERVER_BUF_LEN-1, 0);
+#ifdef DEBUG
+            if (rep_len < 0) printf("URL: %s Receive from server error: %d\n", context.url, WSAGetLastError());
+#endif
             if (rep_len <= 0) break;
             server_buf[rep_len] = 0;
-            
+#ifdef DEBUG
+            printf("Status: 200, URL: %s, Bytes: %d\n", context.url, rep_len);
+#endif
             if (context.method_type == GET) {
                 /* GET method messages */
                 if (contain_rep_header) {
@@ -512,16 +534,23 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
                 /* NOT GET method messages */
                 while (1) {
                     rep_len = recv(server_socket, server_buf, 16348, 0);
-                    if (rep_len < 0) printf("receive from server error: %d\n", WSAGetLastError());
+#ifdef DEBUG
+                    if (rep_len < 0) printf("URL: %s Receive from server error: %d\n", context.url, WSAGetLastError());
+#endif
                     if (rep_len <= 0) break;
                     server_buf[rep_len] = 0;
                     send(browser_socket, server_buf, rep_len, 0);
+#ifdef DEBUG
+                    printf("Status: 200, URL: %s, Bytes: %d\n", context.url, rep_len);
+#endif
                 }
             }
         }
 
         if (context.status_code == 304) {
-            printf("304\n");
+#ifdef DEBUG
+            printf("Status: 304, URL: %s\n", context.url);
+#endif
             fopen_s(&web_page_file, context.local_path, "rb");
             while (web_page_file == NULL) {
                 Sleep(500);
@@ -531,6 +560,9 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
                 rep_len = fread(server_buf, 1, 16348, web_page_file);
                 if (rep_len <= 0) break;
                 send(browser_socket, server_buf, rep_len, 0);
+#ifdef DEBUG
+                printf("Status: 304, URL: %s, Bytes: %d\n", context.url, rep_len);
+#endif
             }
             fclose(web_page_file);
         }
@@ -547,16 +579,28 @@ DWORD WINAPI simple_cache_thread(LPVOID lpParam) {
 void simple_cache() {
     int ret;
 
+    /* infos */
+    printf("Web-Cache 1.0\n");
+    printf("=============\n");
+    printf("Input \"INFO\" to show web-cache configuration info\n");
+    printf("Input \"EXIT\" to exit\n");
+    printf("=============\n");
+    printf("Web-Cache Initializing\n");
+
     /* conditional create directory - Cache */
-    ret = _mkdir(CACHE_DIC);
-    ret = _chdir(CACHE_DIC); // switch to cache directory
+    ret = _mkdir(workspace);
+    ret = _chdir(workspace); // switch to cache directory
+    if (ret == -1) {
+        printf("Fatal error: Cannot create or switch to workspace \n");
+        exit(FILE_NOT_EXIST);
+    }
 
     /* initialize web cache socket */
     SOCKET cache_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     struct sockaddr_in cache_addr;
     cache_addr.sin_family = AF_INET;
     cache_addr.sin_addr.S_un.S_addr = INADDR_ANY;
-    cache_addr.sin_port = htons(DEFAULT_WEB_CACHE_PORT);
+    cache_addr.sin_port = htons(port);
 
     /* bind and listen */
     ret = bind(cache_socket, (struct sockaddr*)&cache_addr, sizeof(cache_addr));
@@ -564,11 +608,32 @@ void simple_cache() {
     ret = listen(cache_socket, DEFAULT_BACKLOG);
     if (ret != 0) printf("listen error: %d\n", WSAGetLastError());
 
+    /* infos */
+    printf("Web-Cache Running\n");
+
     /* muti-thread */
-    HANDLE threads[32];
-    for (int i = 0; i < 32; i++)
+    HANDLE threads[2];
+    for (int i = 0; i < 2; i++)
         threads[i] = CreateThread(NULL, 0, simple_cache_thread, &cache_socket, 0, NULL);
 
-    WaitForMultipleObjects(1, threads, TRUE, INFINITE);
+    /* wait for command */
+    char command[64];
+    while (gets_s(command, 64) != NULL) {
+        if (strncmp(command, "EXIT", 4) == 0) {
+            web_cache_exit_flag = 1;
+            printf("Web-Cache existing, please wait...\n");
+            break;
+        }
+        else if (strncmp(command, "INFO", 4) == 0) {
+            printf("workspace: %s\n", workspace);
+            printf("port: %d\n", port);
+        }
+        else {
+            printf("Unknown command\n");
+        }
+    }
+
+    WaitForMultipleObjects(1, threads, TRUE, timeout);
     closesocket(cache_socket);
+    printf("Web-Cache exist, goodbye\n");
 }

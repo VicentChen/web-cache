@@ -1,13 +1,13 @@
 #ifndef WEB_CACHE_H__
 #define WEB_CACHE_H__
 
-#define DEBUG
+//#define DEBUG
 #define GMTTIME
 #define DEFAULT_HTTP_PORT 80
 #define DEFAULT_WEB_CACHE_PORT 63014
 #define DEFAULT_BACKLOG 64
 #define DEFAULT_QUEUE_LEN 16
-#define CACHE_DIC "Cache"
+#define DEFAULT_CACHE_DIC "Cache"
 #define IP_STR_MAXSIZE 16 /* xxx.xxx.xxx.xxx */
 
 typedef enum {
